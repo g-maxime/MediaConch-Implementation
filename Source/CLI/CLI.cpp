@@ -122,12 +122,6 @@ namespace MediaConch
         //Return plugins list
         if (plugins_list_mode)
             return run_plugins_list(err);
-        //Return watch folders list
-        else if (list_watch_folders_mode)
-            return run_watch_folders_list(err);
-        // Add a watch folder
-        else if (watch_folder.size())
-            return run_watch_folder_cmd(err);
 
         //Return file information
         if (file_information)
@@ -168,32 +162,12 @@ namespace MediaConch
             id_to_report.push_back(file_id);
         }
 
-        //Ensure to analyze before creating library
-        if (create_policy_mode)
-            return run_create_policy(id_to_report);
-
         std::map<std::string, std::string> options;
-        // if compare two files
-        if (policy_reference_file.size())
-        {
-            bool registered = false;
-            long file_id;
-            int ret = MCL.checker_analyze(use_as_user, policy_reference_file, plugins, this->options, registered,
-                                          file_id, err, force_analyze, mil_analyze);
-            if (ret < 0)
-                return -1;
-
-            if (run_policy_reference_file(file_id, err) < 0)
-                return -1;
-
-            std::stringstream ss;
-            ss << file_id;
-            options["policy_reference_id"] = ss.str();
-        }
 
         //Output
         MediaConchLib::Checker_ReportRes result;
         std::vector<size_t> policies_ids;
+        policies.clear();
         options["verbosity"] = MCL.get_implementation_verbosity();
         MCL.checker_get_report(use_as_user, report_set, format, id_to_report, policies_ids,
                                policies, options, &result, error, &display_file, NULL);
