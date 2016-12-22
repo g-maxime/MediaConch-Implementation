@@ -185,7 +185,7 @@ Version 15.08, 2015-08-31
 -------------
 Improved FFV1 slice analysis
 Trace feature: XML malformed with Flags items (hotfix, flags meaning disabled in XML output)
-Trace feature: XML malformed with some MP4 files
+
 Trace feature: XML duplicated attributes
 Trace feature: versioned xsd, creating library name and version
 

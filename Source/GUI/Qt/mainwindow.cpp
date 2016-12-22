@@ -543,7 +543,8 @@ int MainWindow::get_fields_for_type(const std::string& type, std::vector<std::st
 //---------------------------------------------------------------------------
 void MainWindow::on_actionOpen_triggered()
 {
-    QStringList list = QFileDialog::getOpenFileNames(this, "Open file", "", "Video files (*.avi *.mkv *.mov *.mxf *.mp4);;All (*.*)", 0, QFileDialog::Option(0));
+    QStringList list = QFileDialog::getOpenFileNames(this, "Open file", "", "Matroska files (*.mkv);;All (*.*)", 0, QFileDialog::Option(0));
+
     if (list.empty())
         return;
 
