@@ -22,12 +22,12 @@ Homepage: http://MediaArea.net/MediaConch
 Vcs-Svn: https://github.com/MediaArea/MediaConch_SourceCode.git
 Vcs-Browser: https://github.com/MediaArea/MediaConch_SourceCode
 
-Package: mediaconch
+Package: mediaconch-implementation
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, libmediainfo0 (>= 0.7.98), libzen0 (>= 0.4.36)
-Description: implementation and policy checker, reporter and fixer for media files (command-line utility)
- MediaConch is an extensible, open source software project consisting of an
- implementation checker, policy checker, reporter, and fixer that targets
+Description:  implementation checker, reporter and fixer for media files (command-line utility)
+ MediaConch-Implementation is an extensible, open source software project consisting of an
+ implementation checker, reporter, and fixer that targets
  preservation-level audiovisual files (specifically Matroska, Linear Pulse Code
  Modulation (LPCM) and FF Video Codec 1 (FFV1)) for use in memory institutions,
  providing detailed and batch-level conformance checking via an adaptable and
@@ -38,12 +38,12 @@ Description: implementation and policy checker, reporter and fixer for media fil
  .
  This project is maintained by MediaArea and funded by PREFORMA.
 
-Package: mediaconch-server
+Package: mediaconch-implementation-server
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, libmediainfo0 (>= 0.7.98), libzen0 (>= 0.4.36)
-Description: implementation and policy checker, reporter and fixer for media files (server daemon)
- MediaConch is an extensible, open source software project consisting of an
- implementation checker, policy checker, reporter, and fixer that targets
+Description: implementation checker, reporter and fixer for media files (server daemon)
+ MediaConch-Implementation is an extensible, open source software project consisting of an
+ implementation checker, reporter, and fixer that targets
  preservation-level audiovisual files (specifically Matroska, Linear Pulse Code
  Modulation (LPCM) and FF Video Codec 1 (FFV1)) for use in memory institutions,
  providing detailed and batch-level conformance checking via an adaptable and
@@ -54,12 +54,12 @@ Description: implementation and policy checker, reporter and fixer for media fil
  .
  This project is maintained by MediaArea and funded by PREFORMA.
 
-Package: mediaconch-gui
+Package: mediaconch-implementation-gui
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends},  libmediainfo0 (>= 0.7.98), libzen0 (>= 0.4.36)
-Description: implementation and policy checker, reporter and fixer for media files (GUI application)
- MediaConch is an extensible, open source software project consisting of an
- implementation checker, policy checker, reporter, and fixer that targets
+Description: implementation checker, reporter and fixer for media files (GUI application)
+ MediaConch-Implementation is an extensible, open source software project consisting of an
+ implementation checker, reporter, and fixer that targets
  preservation-level audiovisual files (specifically Matroska, Linear Pulse Code
  Modulation (LPCM) and FF Video Codec 1 (FFV1)) for use in memory institutions,
  providing detailed and batch-level conformance checking via an adaptable and
@@ -70,50 +70,3 @@ Description: implementation and policy checker, reporter and fixer for media fil
  .
  This project is maintained by MediaArea and funded by PREFORMA.
 
-Package: mediaconch-dbg
-Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: implementation and policy checker, reporter and fixer for media files (debug info of the command-line utility)
- MediaConch is an extensible, open source software project consisting of an
- implementation checker, policy checker, reporter, and fixer that targets
- preservation-level audiovisual files (specifically Matroska, Linear Pulse Code
- Modulation (LPCM) and FF Video Codec 1 (FFV1)) for use in memory institutions,
- providing detailed and batch-level conformance checking via an adaptable and
- flexible application program interface accessible by the command line, a
- graphical user interface, or a web-based shell.
- .
- This package contains the debugging symbols of the command-line utility.
- .
- This project is maintained by MediaArea and funded by PREFORMA.
-
-Package: mediaconch-server-dbg
-Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: implementation and policy checker, reporter and fixer for media files (debug info of the server daemon)
- MediaConch is an extensible, open source software project consisting of an
- implementation checker, policy checker, reporter, and fixer that targets
- preservation-level audiovisual files (specifically Matroska, Linear Pulse Code
- Modulation (LPCM) and FF Video Codec 1 (FFV1)) for use in memory institutions,
- providing detailed and batch-level conformance checking via an adaptable and
- flexible application program interface accessible by the command line, a
- graphical user interface, or a web-based shell.
- .
- This package contains the debugging symbols of the server daemon.
- .
- This project is maintained by MediaArea and funded by PREFORMA.
-
-Package: mediaconch-gui-dbg
-Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: implementation and policy checker, reporter and fixer for media files (debug info of the GUI application)
- MediaConch is an extensible, open source software project consisting of an
- implementation checker, policy checker, reporter, and fixer that targets
- preservation-level audiovisual files (specifically Matroska, Linear Pulse Code
- Modulation (LPCM) and FF Video Codec 1 (FFV1)) for use in memory institutions,
- providing detailed and batch-level conformance checking via an adaptable and
- flexible application program interface accessible by the command line, a
- graphical user interface, or a web-based shell.
- .
- This package contains the debugging symbols of the GUI application.
- .
- This project is maintained by MediaArea and funded by PREFORMA.

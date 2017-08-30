@@ -5,7 +5,7 @@ dnl #########################################################################
 dnl -------------------------------------------------------------------------
 dnl Name and version
 dnl
-AC_INIT([mediaconchd], [17.07.0])
+AC_INIT([mediaconch-implementationd], [17.07.0])
 
 dnl -------------------------------------------------------------------------
 dnl Test if we are at the good place
@@ -476,7 +476,7 @@ dnl ### Report how we have been configured
 dnl #########################################################################
 
 echo ""
-echo "Configured MediaConch for '$target'"
+echo "Configured MediaConch-Implementation for '$target'"
 echo ""
 echo "  Unicode?                                                $enable_unicode"
 echo "  stream missing support?                                 $enable_stream_missing"

@@ -2,25 +2,25 @@
 
 =head1 NAME
 
-MediaConch - implementation and policy checker, reporter and fixer for media files
+MediaConch-Implementation - implementation checker, reporter and fixer for media files
 
-MediaInfo-Gui - implementation and policy checker, reporter and fixer for media files (graphical utility)
+MediaConch-Implementation-Gui - implementation checker, reporter and fixer for media files (graphical utility)
 
 =head1 SYNOPSIS
 
 =over
 
-=item mediaconch [F<-Options>...] F<FileName1> [F<Filename2>...]
+=item mediaconch-implementation [F<-Options>...] F<FileName1> [F<Filename2>...]
 
-=item mediaconch-gui [F<-Options>...] F<FileName1> [F<Filename2>...]
+=item mediaconch-implementation-gui [F<-Options>...] F<FileName1> [F<Filename2>...]
 
 =back
 
 
 =head1 DESCRIPTION
 
-MediaConch is an extensible, open source software project consisting of an
-implementation checker, policy checker, reporter, and fixer that targets
+MediaConch-Implementation is an extensible, open source software project consisting of an
+implementation checker, reporter, and fixer that targets
 preservation-level audiovisual files (specifically Matroska, Linear Pulse Code
 Modulation (LPCM) and FF Video Codec 1 (FFV1)) for use in memory institutions,
 providing detailed and batch-level conformance checking via an adaptable and
@@ -29,7 +29,7 @@ graphical user interface, or a web-based shell.
 
 =head1 OPTIONS
 
-MediaInfo supports the following case-insensitive options:
+MediaConch supports the following case-insensitive options:
 
 =over
 
@@ -43,34 +43,13 @@ Display the advanced help and exit
 
 =back
 
-=head2 Reporting Elements
+=head2 Implementation Checker
 
 =over
 
-=item B<--Mediaconch>, B<-mc>
+=item B<--Implementation=ImplementationFileName>, B<-p ImplementationFileName>
 
-Output MediaConch report (default)
-
-(MediaConch contains default verbosity of implementationChecks plus any provided
-policy checks.)
-
-=item B<--Mediainfo>, B<-mi>
-
-Output MediaInfo report
-
-=item B<--Mediatrace>, B<-mt>
-
-Output a trace of the file
-
-=back
-
-=head2 Policy Checker
-
-=over
-
-=item B<--Policy=PolicyFileName>, B<-p PolicyFileName>
-
-Apply the policy (XSL or Schematron)
+Apply the implementation (XSL or Schematron)
 
 =back
 
@@ -86,10 +65,6 @@ Output in Text format (default)
 
 Output in MediaInfo/MediaConch/MediaTrace XML format (changed to -fa if there
 are more than 1 tool or more than 1 file)
-
-=item B<--Format=maxml>, B<-fa>
-
-Output in MediaArea XML format
 
 =item B<--Format=html>, B<-fh>
 

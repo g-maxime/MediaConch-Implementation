@@ -30,40 +30,35 @@ override_dh_auto_build:
 override_dh_auto_install:
 	$(call auto_build_cmd,dh_auto_install)
 	install -dm 755 $(CURDIR)/debian/tmp/usr/bin
-	install -m 755 Project/Qt/mediaconch-gui $(CURDIR)/debian/tmp/usr/bin
+	install -m 755 Project/Qt/mediaconch-implementation-gui $(CURDIR)/debian/tmp/usr/bin
 	install -dm 755 $(CURDIR)/debian/tmp/usr/share/pixmaps
-	install -m 644 Source/Resource/Image/MediaConch.xpm $(CURDIR)/debian/tmp/usr/share/pixmaps/mediaconch.xpm
+	install -m 644 Source/Resource/Image/MediaConch.xpm $(CURDIR)/debian/tmp/usr/share/pixmaps/mediaconch-implementation.xpm
 	install -dm 755 $(CURDIR)/debian/tmp/usr/share/icons/hicolor
-	install -m 644 Source/Resource/Image/MediaConchBig.png $(CURDIR)/debian/tmp/usr/share/icons/hicolor/mediaconch.png
+	install -m 644 Source/Resource/Image/MediaConchBig.png $(CURDIR)/debian/tmp/usr/share/icons/hicolor/mediaconch-implementation.png
 	install -dm 755 $(CURDIR)/debian/tmp/usr/share/icons/hicolor/256x256/apps
-	install -m 644 Source/Resource/Image/MediaConch.png $(CURDIR)/debian/tmp/usr/share/icons/hicolor/256x256/apps/mediaconch.png
+	install -m 644 Source/Resource/Image/MediaConch.png $(CURDIR)/debian/tmp/usr/share/icons/hicolor/256x256/apps/mediaconch-implementation.png
 	install -dm 755 $(CURDIR)/debian/tmp/usr/share/icons/hicolor/scalable/apps
-	install -m 644 Source/Resource/Image/MediaConch.svg $(CURDIR)/debian/tmp/usr/share/icons/hicolor/scalable/apps/mediaconch.svg
+	install -m 644 Source/Resource/Image/MediaConch.svg $(CURDIR)/debian/tmp/usr/share/icons/hicolor/scalable/apps/mediaconch-implementation.svg
 	install -dm 755 $(CURDIR)/debian/tmp/usr/share/applications
-	install -m 644 Project/GNU/GUI/mediaconch-gui.desktop $(CURDIR)/debian/tmp/usr/share/applications
+	install -m 644 Project/GNU/GUI/mediaconch-gui.desktop $(CURDIR)/debian/tmp/usr/share/applications/mediaconch-implementation-gui.desktop
 	install -dm 755 $(CURDIR)/debian/tmp/usr/share/apps/konqueror/servicemenus/
-	install -m 644 Project/GNU/GUI/mediaconch-gui.kde3.desktop $(CURDIR)/debian/tmp/usr/share/apps/konqueror/servicemenus/mediaconch-gui.desktop
+	install -m 644 Project/GNU/GUI/mediaconch-gui.kde3.desktop $(CURDIR)/debian/tmp/usr/share/apps/konqueror/servicemenus/mediaconch-implementation-gui.desktop
 	install -dm 755 $(CURDIR)/debian/tmp/usr/share/kde4/services/ServiceMenus/
-	install -m 644 Project/GNU/GUI/mediaconch-gui.kde4.desktop $(CURDIR)/debian/tmp/usr/share/kde4/services/ServiceMenus/mediaconch-gui.desktop
+	install -m 644 Project/GNU/GUI/mediaconch-gui.kde4.desktop $(CURDIR)/debian/tmp/usr/share/kde4/services/ServiceMenus/mediaconch-implementation-gui.desktop
 	install -dm 755 $(CURDIR)/debian/tmp/usr/share/appdata
-	install -m 644 Project/GNU/GUI/mediaconch-gui.appdata.xml $(CURDIR)/debian/tmp/usr/share/appdata
+	install -m 644 Project/GNU/GUI/mediaconch-gui.appdata.xml $(CURDIR)/debian/tmp/usr/share/appdata/mediaconch-implementation-gui.appdata.xml
 
 override_dh_auto_clean:
 	$(call auto_build_cmd,dh_auto_clean)
 
-override_dh_installman: debian/mediaconch.1
+override_dh_installman: debian/mediaconch-implementation.1
 	dh_installman
 
 override_dh_installchangelogs:
 	fromdos      *.txt
 	chmod 644    *.txt
-	dh_installchangelogs -p mediaconch History_CLI.txt
-	dh_installchangelogs -p mediaconch-gui History_GUI.txt
-
-override_dh_strip:
-	dh_strip -p mediaconch --dbg-package=mediaconch-dbg
-	dh_strip -p mediaconch-server --dbg-package=mediaconch-server-dbg
-	dh_strip -p mediaconch-gui --dbg-package=mediaconch-gui-dbg
+	dh_installchangelogs -p mediaconch-implementation History_CLI.txt
+	dh_installchangelogs -p mediaconch-implementation-gui History_GUI.txt
 
 clean:
 	rm -f debian/*.1
