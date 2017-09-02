@@ -193,15 +193,9 @@ void Log_0(struct MediaInfo_Event_Log_0* Event)
         //Return plugins list
         if (plugins_list_mode)
             return run_plugins_list(err);
-        //Return watch folders list
-        else if (list_watch_folders_mode)
-            return run_watch_folders_list(err);
         //Return list files
         else if (list_mode)
             return run_list_files(err);
-        // Add a watch folder
-        else if (watch_folder.size())
-            return run_watch_folder_cmd(err);
 
         //Return file information
         if (file_information)
@@ -248,37 +242,12 @@ void Log_0(struct MediaInfo_Event_Log_0* Event)
                 cr.files.push_back(file_ids[j]);
         }
 
-        //Ensure to analyze before creating library
-        if (create_policy_mode)
-            return run_create_policy(cr.files);
-
-        // if compare two files
-        if (policy_reference_file.size())
-        {
-            bool registered = false;
-            long file_id;
-            int ret = MCL.checker_analyze(use_as_user, policy_reference_file, plugins, this->options, registered,
-                                          file_id, err, force_analyze, mil_analyze);
-            if (ret < 0)
-                return -1;
-
-            if (run_policy_reference_file(file_id, err) < 0)
-                return -1;
-
-            std::stringstream ss;
-            ss << file_id;
-            cr.options["policy_reference_id"] = ss.str();
-        }
-
         //Output
         MediaConchLib::Checker_ReportRes result;
         cr.user = use_as_user;
         cr.report_set = report_set;
         cr.format = format;
         cr.options["verbosity"] = MCL.get_implementation_verbosity();
-
-        for (size_t i = 0; i < policies.size(); ++i)
-            cr.policies_contents.push_back(policies[i]);
 
         cr.display_content = &display_content;
         MCL.checker_get_report(cr, &result, error);
