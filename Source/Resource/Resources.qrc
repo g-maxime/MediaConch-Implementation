@@ -29,9 +29,6 @@
         <file alias="menu.js">html/js/menu.js</file>
         <file alias="checker/base.js">html/js/checker/base.js</file>
         <file alias="checker/cellImplementation.js">html/js/checker/cellImplementation.js</file>
-        <file alias="checker/cellMediaInfo.js">html/js/checker/cellMediaInfo.js</file>
-        <file alias="checker/cellMediaTrace.js">html/js/checker/cellMediaTrace.js</file>
-        <file alias="checker/cellPolicy.js">html/js/checker/cellPolicy.js</file>
         <file alias="checker/cellStatus.js">html/js/checker/cellStatus.js</file>
         <file alias="checker/table.js">html/js/checker/table.js</file>
         <file alias="checker/webengine.js">html/js/checker/webengine.js</file>

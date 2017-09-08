@@ -4,7 +4,6 @@ var checker = (function() {
         checkerTable.init();
 
         formBindings();
-        applyPolicyToAll();
         bindings();
 
         //
@@ -14,7 +13,7 @@ var checker = (function() {
 
         // help
         addHelp('.label_fixer', 'Try to fix buggy files, technology preview, see <a href="https://mediaarea.net/MediaConch/fixity.html" onclick="urlUtils.openInBrowser(event);">the fixity webpage</a> for how to test it.', 'Fixer', 'checkerFixerHelp');
-        addHelp('.label_parsespeed', 'By default, only few frames are parsed, fast, suitable for policy checker and container implementation checker. Enable this option for checking all frames in the file, slower.', 'Full parsing', 'checkerParseSpeedHelp');
+        addHelp('.label_parsespeed', 'By default, only few frames are parsed, fast, suitable for container implementation checker. Enable this option for checking all frames in the file, slower.', 'Full parsing', 'checkerParseSpeedHelp');
     }
 
     var formBindings = function() {
@@ -53,29 +52,6 @@ var checker = (function() {
         };
 
         return formValues;
-    };
-
-    var applyPolicyToAll = function() {
-        // Apply policy to all
-        $('#checkerApplyAll').html('<div class="applyAll form-horizontal"></div>');
-        $('#checkerApplyAll').addClass('tab-pane');
-
-        var resetSelectList = function(listId) {
-            $('#' + listId + ' option').prop('selected', false);
-        };
-
-        // Duplicate policy list
-        var policyList = $('.tab-content .active .policyList').clone();
-        policyList.attr('id', 'applyAllPolicy');
-        policyList.children('option:first').text('Choose a new policy to apply');
-        $('#checkerApplyAll div.applyAll').append('<div class="col-md-12"><div class="form-group"><label class="pull-left control-label">Apply a policy to all results</label><div class="col-sm-4 policy">')
-        $('#checkerApplyAll div.applyAll div.policy').html(policyList);
-        resetSelectList('applyAllPolicy');
-
-        $('#applyAllPolicy').on('change', function(e) {
-            checkerTable.applyPolicyToAll();
-            resetSelectList('applyAllPolicy');
-        });
     };
 
     var bindings = function() {

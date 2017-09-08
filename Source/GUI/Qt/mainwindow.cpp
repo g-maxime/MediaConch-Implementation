@@ -624,23 +624,6 @@ void MainWindow::on_actionSettings_triggered()
 }
 
 //---------------------------------------------------------------------------
-void MainWindow::on_actionChooseSchema_triggered()
-{
-    QString file = ask_for_schema_file();
-    if (!file.length())
-        return;
-
-    QString err;
-    if (policy_import(file, err) < 0)
-        set_msg_to_status_bar(err);
-
-    if (!ui->actionPolicies->isChecked())
-        ui->actionPolicies->setChecked(true);
-    current_view = RUN_POLICIES_VIEW;
-    Run();
-}
-
-//---------------------------------------------------------------------------
 void MainWindow::loadFinished_Custom(bool ok)
 {
     if (!ok)

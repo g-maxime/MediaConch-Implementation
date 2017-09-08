@@ -16,18 +16,13 @@ var checkerTable = (function() {
             },
             columnDefs: [
                 { orderable: true, targets: 0 },
-                { orderable: true, searchable: false, targets: [1, 2, 5] },
-                { orderable: false, searchable: false, width: '10%', targets: [3, 4] },
-                { width: '10%', targets: [1, 5] },
-                { width: '25%', targets: [0, 2] },
+                { orderable: true, searchable: false, targets: [1, 2] },
+                { width: '15%', targets: [1, 2] },
             ]
         });
 
         statusCell.init(result);
         implementationCell.init(result);
-        policyCell.init(result);
-        mediaInfoCell.init(result);
-        mediaTraceCell.init(result);
         resultRowHoverBinding();
         addExisting();
     };
@@ -65,30 +60,6 @@ var checkerTable = (function() {
     };
 
     var updateFile = function(fileId, formValues) {
-        var node = result.$('#result-' + fileId);
-
-        // Update policy if it has changed
-        if (node.data('policy') != formValues.policy) {
-            node.data('policy', formValues.policy);
-            node.data('policyName', formValues.policyText);
-
-            policyCell.update(fileId, node.data('policy'));
-        }
-
-        // Update display if it has changed
-        if (node.data('display') != formValues.display) {
-            node.data('display', formValues.display);
-
-            implementationCell.removeModalIfExists(fileId);
-            policyCell.removeModalIfExists(fileId);
-        }
-
-        // Update verbosity if it has changed
-        if (node.data('verbosity') != formValues.verbosity && (2 == node.data('tool') || undefined == node.data('tool'))) {
-            node.data('verbosity', formValues.verbosity);
-
-            implementationCell.removeModalIfExists(fileId);
-        }
     };
 
     var addFile = function(fileName, fileId, formValues) {
@@ -98,7 +69,7 @@ var checkerTable = (function() {
         else
             fileNameSplitted = "";
         var node = result.row.add( [ '<span title="' + fileName + '">' + textUtils.truncate(fileNameSplitted, 28) + '</span>',
-            '', '', '', '',
+            '',
             '<span class="statusResult">In queue</span><div class="statusButton hidden"> \
             <button type="button" class="btn btn-link result-reload hidden" title="Reload result (force analyze)"><span class="glyphicon glyphicon-refresh" aria-hidden="true"></span></button> \
             <button type="button" class="btn btn-link result-close" title="Close result"><span class="glyphicon glyphicon-trash" aria-hidden="true"></span></button></div>'
@@ -110,14 +81,8 @@ var checkerTable = (function() {
         nodej.addClass('fileId-' + fileId);
         nodej.data('fileId', fileId);
 
-        // Add policy, display and verbosity
-        nodej.data('policy', formValues.policy);
-        nodej.data('policyName', formValues.policyText);
-        nodej.data('display', formValues.display);
-        nodej.data('verbosity', formValues.verbosity);
-
         // Change status class
-        $(result.cell(node, 5).node()).addClass('statusCell info');
+        $(result.cell(node, 2).node()).addClass('statusCell info');
 
         // Close button
         nodej.find('.result-close').click(node, function(e) {
@@ -158,14 +123,8 @@ var checkerTable = (function() {
     var resetRow = function(id) {
         statusCell.reset(id);
         implementationCell.reset(id);
-        policyCell.reset(id);
-        mediaInfoCell.reset(id);
-        mediaTraceCell.reset(id);
 
         implementationCell.removeModalIfExists(id);
-        policyCell.removeModalIfExists(id);
-        mediaInfoCell.removeModalIfExists(id);
-        mediaTraceCell.removeModalIfExists(id);
     };
 
     var startWaitingLoop = function() {
@@ -259,27 +218,10 @@ var checkerTable = (function() {
                 // Status
                 statusCell.success(statusFileId);
 
-                // Implementation and Policy
-                if (node.data('policy') != undefined && node.data('policy') !== "-1" && node.data('policy') !== -1) {
-                    implementationCell.addSpinnerToCell(statusFileId);
-                    policyCell.addSpinnerToCell(statusFileId);
+                // Implementation only
+                implementationCell.addSpinnerToCell(statusFileId);
 
-                    reports.push({id: statusFileId, tool: status.tool, policyId: node.data('policy')});
-                }
-                else {
-                    // Implementation only
-                    implementationCell.addSpinnerToCell(statusFileId);
-
-                    reports.push({id: statusFileId, tool: status.tool});
-
-                    policyCell.emptyWithModal(statusFileId);
-                }
-
-                // MediaInfo
-                mediaInfoCell.success(statusFileId);
-
-                // MediaTrace
-                mediaTraceCell.success(statusFileId);
+                reports.push({id: statusFileId, tool: status.tool});
 
                 // Handle associated files (attachments)
                 if (undefined !== status.associatedFiles) {
@@ -303,21 +245,6 @@ var checkerTable = (function() {
         }
     };
 
-    // Apply policy to all results
-    var applyPolicyToAll = function() {
-        result.$('tr').each(function() {
-            var node = result.$('#' + $(this).prop('id'));
-
-            if (node.data('policy') != $('#applyAllPolicy').val()) {
-                // Update policy
-                node.data('policy', $('#applyAllPolicy').val());
-                node.data('policyName', $('#applyAllPolicy option:selected').text());
-
-                policyCell.update(node.data('fileId'), node.data('policy'));
-            }
-        });
-    };
-
     var setCheckerStatusInProgress = function(status) {
         checkerStatusInProgress = status;
     };
@@ -331,16 +258,12 @@ var checkerTable = (function() {
             result.$('tr').on('mouseenter', function() {
                 $(this).find('.statusResult').addClass('hidden');
                 $(this).find('.statusButton').removeClass('hidden').parent().addClass('text-center');
-                $(this).find('.policyResult').addClass('hidden');
-                $(this).find('.policyButton').removeClass('hidden').parent().addClass('text-center');
                 $(this).find('.implemResult').addClass('hidden');
                 $(this).find('.implemButton').removeClass('hidden').parent().addClass('text-center');
             });
             result.$('tr').on('mouseleave', function() {
                 $(this).find('.statusButton').addClass('hidden').parent().removeClass('text-center');
                 $(this).find('.statusResult').removeClass('hidden');
-                $(this).find('.policyButton').addClass('hidden').parent().removeClass('text-center');
-                $(this).find('.policyResult').removeClass('hidden');
                 $(this).find('.implemButton').addClass('hidden').parent().removeClass('text-center');
                 $(this).find('.implemResult').removeClass('hidden');
             });
@@ -359,7 +282,6 @@ var checkerTable = (function() {
         startWaitingLoop: startWaitingLoop,
         updateFileOrAddFile: updateFileOrAddFile,
         processCheckerStatusRequest: processCheckerStatusRequest,
-        applyPolicyToAll: applyPolicyToAll,
         setCheckerStatusInProgress: setCheckerStatusInProgress,
         addExisting: addExisting,
     };

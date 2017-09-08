@@ -10,9 +10,9 @@ var checkerAjax = (function() {
                 options.push("file_parsespeed");
                 options.push("1");
             }
-            webpage.on_file_upload_selected($('.tab-content .active .policyList').val(),
-                                            $('.tab-content .active .displayList').val(),
-                                            $('.tab-content .active .verbosityList').val(),
+            webpage.on_file_upload_selected("",
+                                            "",
+                                            "",
                                             $('#checkerUpload_fixer').is(':checked'),
                                             options,
                                             function (res)
@@ -29,9 +29,9 @@ var checkerAjax = (function() {
             }
 
             webpage.on_file_online_selected($('#checkerOnline_file').val(),
-                                            $('.tab-content .active .policyList').val(),
-                                            $('.tab-content .active .displayList').val(),
-                                            $('.tab-content .active .verbosityList').val(),
+                                            "",
+                                            "",
+                                            "",
                                             false, options,
                                             function (res)
                                             {
@@ -46,9 +46,9 @@ var checkerAjax = (function() {
                 options.push("1");
             }
 
-            webpage.on_file_repository_selected($('.tab-content .active .policyList').val(),
-                                                $('.tab-content .active .displayList').val(),
-                                                $('.tab-content .active .verbosityList').val(),
+            webpage.on_file_repository_selected("",
+                                                "",
+                                                "",
                                                 $('#checkerRepository_fixer').is(':checked'),
                                                 options,
                                                 function (res)
@@ -173,26 +173,7 @@ var checkerAjax = (function() {
 
                 if (result.implemReport !== undefined)
                     implementationCell.success(result.implemReport, result.implemReport.fileId);
-
-                if (result.policyReport !== undefined)
-                    policyCell.success(result.policyReport, result.policyReport.fileId);
             })
-        });
-    };
-
-    var policyStatus = function(fileId, policyId) {
-        webpage.policy_is_valid(fileId, policyId, function(res)
-        {
-            data = JSON.parse(res);
-            policyCell.success(data, fileId);
-        });
-    };
-
-    var policyReport = function(fileId, policy, display) {
-        webpage.on_fill_policy_report(fileId, policy, display, function(res)
-        {
-            data = JSON.parse(res);
-            policyCell.displayReport(fileId, data);
         });
     };
 
@@ -220,17 +201,6 @@ var checkerAjax = (function() {
         });
     };
 
-    var createPolicyFromFileId = function(fileId) {
-        webpage.on_create_policy_from_file(fileId, function(res)
-        {
-            data = JSON.parse(res);
-            if (data.error && data.error.length)
-                mediaInfoCell.createPolicyError(fileId);
-            else
-                mediaInfoCell.createPolicySuccess(data, fileId);
-        });
-    };
-
     var forceAnalyze = function(fileId) {
         webpage.checker_force_analyze(fileId, function(res)
         {
@@ -249,34 +219,6 @@ var checkerAjax = (function() {
         webpage.on_save_implementation_report(fileId, display, verbosity);
     };
 
-    var downloadPolicyReportUrl = function(fileId, policy, display) {
-        webpage.on_save_policy_report(fileId, policy, display);
-    };
-
-    var downloadReportUrl = function(fileId, reportType) {
-        if (reportType === "mi")
-            webpage.on_save_mediainfo_report(fileId);
-        else if (reportType === "mt")
-            webpage.on_save_mediatrace_report(fileId);
-    };
-
-    var reportTreeUrl = function(fileId, reportType) {
-        if (reportType === "mi")
-        {
-            webpage.on_fill_mediainfo_report(fileId, function(res)
-            {
-                return res;
-            });
-        }
-        else if (reportType === "mt")
-        {
-            webpage.on_fill_mediatrace_report(fileId, function(res)
-            {
-                return res;
-            });
-        }
-    };
-
     var closeAll = function() {
         webpage.close_all();
     };
@@ -290,16 +232,10 @@ var checkerAjax = (function() {
         formRequestResponse: formRequestResponse,
         checkerStatus: checkerStatus,
         statusReportsMulti: statusReportsMulti,
-        policyStatus: policyStatus,
-        policyReport: policyReport,
         implementationStatus: implementationStatus,
         implementationReport: implementationReport,
-        createPolicyFromFileId: createPolicyFromFileId,
         forceAnalyze: forceAnalyze,
         downloadImplementationReportUrl: downloadImplementationReportUrl,
-        downloadPolicyReportUrl: downloadPolicyReportUrl,
-        downloadReportUrl: downloadReportUrl,
-        reportTreeUrl: reportTreeUrl,
         addExisting: addExisting,
         closeAll: closeAll,
         closeElement: closeElement,

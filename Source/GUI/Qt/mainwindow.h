@@ -266,7 +266,6 @@ Q_SIGNALS:
 
 private Q_SLOTS:
     void on_actionOpen_triggered();
-    void on_actionChooseSchema_triggered();
 
 public Q_SLOTS:
     // View

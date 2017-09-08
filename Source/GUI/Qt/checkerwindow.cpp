@@ -469,9 +469,6 @@ void CheckerWindow::change_body_script_in_template(QString& html)
 #endif
     script += "        <script type=\"text/javascript\" src=\"qrc:/checker/base.js\"></script>\n"
               "        <script type=\"text/javascript\" src=\"qrc:/checker/cellImplementation.js\"></script>\n"
-              "        <script type=\"text/javascript\" src=\"qrc:/checker/cellMediaInfo.js\"></script>\n"
-              "        <script type=\"text/javascript\" src=\"qrc:/checker/cellMediaTrace.js\"></script>\n"
-              "        <script type=\"text/javascript\" src=\"qrc:/checker/cellPolicy.js\"></script>\n"
               "        <script type=\"text/javascript\" src=\"qrc:/checker/cellStatus.js\"></script>\n"
               "        <script type=\"text/javascript\" src=\"qrc:/checker/table.js\"></script>\n"
               "        <script type=\"text/javascript\" src=\"qrc:/utils/url.js\"></script>\n"

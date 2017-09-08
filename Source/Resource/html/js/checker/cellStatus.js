@@ -5,14 +5,14 @@ var statusCell = (function() {
     };
 
     var success = function(fileId) {
-        var nodeStatus = $(result.cell('#result-' + fileId, 5).node());
+        var nodeStatus = $(result.cell('#result-' + fileId, 2).node());
         nodeStatus.removeClass('info danger checkInProgress').addClass('success');
         nodeStatus.find('.statusResult').html('<span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span><span class="status-text"> Analyzed</span>');
         nodeStatus.find('.result-reload').removeClass('hidden');
     };
 
     var inProgress = function(fileId, status) {
-        var nodeStatus = $(result.cell('#result-' + fileId, 5).node());
+        var nodeStatus = $(result.cell('#result-' + fileId, 2).node());
         nodeStatus.addClass('checkInProgress');
         if ((undefined !== status.tool && 2 != status.tool) || 100 == status.percent) {
             nodeStatus.find('.statusResult').html('<span class="spinner-status"></span>');
@@ -23,14 +23,14 @@ var statusCell = (function() {
     };
 
     var error = function(fileId) {
-        var nodeStatus = $(result.cell('#result-' + fileId, 5).node());
+        var nodeStatus = $(result.cell('#result-' + fileId, 2).node());
         nodeStatus.removeClass('info danger checkInProgress').addClass('danger');
         nodeStatus.find('.statusResult').html('<span class="glyphicon glyphicon-remove text-danger" aria-hidden="true"></span> Error');
         nodeStatus.find('.result-reload').removeClass('hidden');
     };
 
     var reset = function(fileId) {
-        var nodeStatus = $(result.cell('#result-' + fileId, 5).node());
+        var nodeStatus = $(result.cell('#result-' + fileId, 2).node());
         nodeStatus.removeClass().addClass('statusCell info');
         nodeStatus.find('.statusButton').addClass('hidden').parent().removeClass('text-center');
         nodeStatus.find('.statusResult').removeClass('hidden').html('In queue');

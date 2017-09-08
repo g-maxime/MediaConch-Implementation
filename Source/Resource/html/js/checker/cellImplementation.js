@@ -31,14 +31,6 @@ var implementationCell = (function() {
                                 <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button> \
                                 <h4 class="modal-title">Implementation report</h4> \
                             </div> \
-                            <div class="modal-header form-horizontal"> \
-                                <div class="col-md-6"> \
-                                    <div class="form-group"><label class="col-sm-2 control-label">Display</label><div class="col-sm-10"><select id="modalConformanceDisplay-' + fileId + '"></select></div></div> \
-                                </div> \
-                                <div class="col-md-6 modal-implem-verbosity"> \
-                                    <div class="form-group"><label class="col-sm-3 control-label">Verbosity</label><div class="col-sm-9"><select id="modalConformanceVerbosity-' + fileId + '"></select></div></div> \
-                                </div> \
-                            </div> \
                             <div class="modal-body"></div> \
                             <div class="modal-footer"> \
                                 <button type="button" class="btn btn-primary implem-dld" data-target="#modalConformance-' + fileId + '">Download implementation report</button> \
@@ -49,39 +41,13 @@ var implementationCell = (function() {
                 </div>');
 
                 addSpinnerToModal(fileId);
-                checkerAjax.implementationReport(fileId, nodeModal.data('display'), nodeModal.data('verbosity'), nodeModal.data('tool'));
+                checkerAjax.implementationReport(fileId, "", "", nodeModal.data('tool'));
 
                 $('#modalConformance-' + fileId + ' .implem-dld').on('click', function(e) {
                     e.preventDefault();
-                    var modalDisplay = $('#modalConformanceDisplay-' + fileId).val();
-                    var modalVerbosity = $('#modalConformanceVerbosity-' + fileId).val();
+                    var modalDisplay = "";
+                    var modalVerbosity = "";
                     checkerAjax.downloadImplementationReportUrl(fileId, nodeModal.data('tool'), modalDisplay, modalVerbosity);
-                });
-
-                // Update report when display is changed
-                var displayList = $('.tab-content .active .displayList').clone();
-                displayList.attr('id', 'modalConformanceDisplay-' + fileId);
-                displayList.find('option').prop('selected', false);
-                displayList.find("option[value = '" + nodeModal.data('display') + "']").prop('selected', true);
-                $('#modalConformanceDisplay-' + fileId).replaceWith(displayList);
-                $('#modalConformanceDisplay-' + fileId).on('change', function(e) {
-                    var modalDisplay = $('#modalConformanceDisplay-' + fileId).val();
-                    var modalVerbosity = $('#modalConformanceVerbosity-' + fileId).val();
-                    addSpinnerToModal(fileId);
-                    checkerAjax.implementationReport(fileId, modalDisplay, modalVerbosity, nodeModal.data('tool'));
-                });
-
-                // Update report when verbosity is changed
-                var verbosityList = $('.tab-content .active .verbosityList').clone();
-                verbosityList.attr('id', 'modalConformanceVerbosity-' + fileId);
-                verbosityList.find('option').prop('selected', false);
-                verbosityList.find("option[value = '" + nodeModal.data('verbosity') + "']").prop('selected', true);
-                $('#modalConformanceVerbosity-' + fileId).replaceWith(verbosityList);
-                $('#modalConformanceVerbosity-' + fileId).on('change', function(e) {
-                    var modalDisplay = $('#modalConformanceDisplay-' + fileId).val();
-                    var modalVerbosity = $('#modalConformanceVerbosity-' + fileId).val();
-                    addSpinnerToModal(fileId);
-                    checkerAjax.implementationReport(fileId, modalDisplay, modalVerbosity, nodeModal.data('tool'));
                 });
 
                 if (2 != nodeModal.data('tool')) {
@@ -93,7 +59,7 @@ var implementationCell = (function() {
         nodeImplem.find('.implem-dld').on('click', function(e) {
             e.preventDefault();
             var nodeDld = result.$('#result-' + fileId);
-            checkerAjax.downloadImplementationReportUrl(fileId, nodeDld.data('tool'), nodeDld.data('display'), nodeDld.data('verbosity'));
+            checkerAjax.downloadImplementationReportUrl(fileId, nodeDld.data('tool'), "", "");
         });
     };
 
