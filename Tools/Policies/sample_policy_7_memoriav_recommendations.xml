@@ -21,4 +21,18 @@
       <rule name="BitDepth is 8?" value="BitDepth" tracktype="Video" occurrence="*" operator="=">8</rule>
     </policy>
   </policy>
+  <policy type="or" name="Conditionally recommended Video Encoding?">
+    <rule name="Format is DV?" value="Format" tracktype="Video" occurrence="*" operator="=">DV</rule>
+    <policy type="and" name="Format is MPEG2 (XDCam 50 or IMX 50)?">
+      <description>to do: make test more specific to IMX or XDCam</description>
+      <rule name="Format is MPEG?" value="Format" tracktype="Video" occurrence="*" operator="=">MPEG Video</rule>
+      <rule name="Format verison is 2 (MPEG2)?" value="Format_Version" tracktype="Video" occurrence="*" operator="=">2</rule>
+      <policy type="or" name="BitRate is 50Mb">
+        <rule name="BitRate is 50Mb?" value="BitRate" tracktype="Video" occurrence="*" operator="=">50000000</rule>
+        <rule name="Max BitRate is 50Mb?" value="BitRate_Maximum" tracktype="Video" occurrence="*" operator="=">50000000</rule>
+      </policy>
+    </policy>
+    <rule name="Format is JPEG 2000?" value="Format" tracktype="Video" occurrence="*" operator="=">JPEG 2000</rule>
+    <rule name="Format is FFV1?" value="Format" tracktype="Video" occurrence="*" operator="=">FFV1</rule>
+  </policy>
 </policy>

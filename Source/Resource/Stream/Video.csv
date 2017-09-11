@@ -17,6 +17,7 @@ Format_Settings_Pulldown;Video:Format;FromStats;
 Format_Settings_FrameMode;Video:Format;FromStats;
 Format_Settings_GOP;Video:Format;FromStats;
 Format_Settings_PictureStructure;Video:Format;FromStats;
+Format_Settings_Wrapping;General:Format=MXF;FromStats;
 MuxingMode;;FromStats;
 CodecID;General:Format;FromStats;
 BitRate_Mode;;FromStats;
