@@ -61,6 +61,8 @@
     <addaction name="actionOpen"/>
     <addaction name="actionCloseAll"/>
     <addaction name="separator"/>
+    <addaction name="actionChooseSchema"/>
+    <addaction name="separator"/>
     <addaction name="actionQuit"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
@@ -87,11 +89,6 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+Q</string>
-   </property>
-  </action>
-  <action name="actionChooseSchema">
-   <property name="text">
-    <string>&amp;Import policy set...</string>
    </property>
   </action>
   <action name="actionSavePolicies">
@@ -132,6 +129,14 @@
    </property>
    <property name="text">
     <string>&amp;Display</string>
+   </property>
+  </action>
+  <action name="actionDatabase">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Data&amp;base</string>
    </property>
   </action>
   <action name="actionSettings">

@@ -292,18 +292,18 @@ public:
 
     struct Checker_Status_Ok
     {
-        Checker_Status_Ok() : finished(false), has_error(false), percent(NULL), tool(NULL), generated_id(-1), source_id(-1) {}
+        Checker_Status_Ok() : finished(false), has_error(false), percent(NULL), tool(NULL), source_id(-1) {}
         ~Checker_Status_Ok();
 
-        long                    id;
-        bool                    finished;
-        bool                    has_error;
-        std::string             error_log;
+        long                     id;
+        bool                     finished;
+        bool                     has_error;
+        std::string              error_log;
         double                  *percent;
         Report                  *tool;
-        long                    generated_id;
-        long                    source_id;
-        std::string             to_str() const;
+        std::vector<long>        generated_id;
+        long                     source_id;
+        std::string              to_str() const;
     };
 
     struct Checker_Status_Res
@@ -362,6 +362,25 @@ public:
     struct Checker_Clear_Res
     {
         ~Checker_Clear_Res();
+
+        std::vector<long>               ok;
+        std::vector<MediaConch_Nok*>    nok;
+        std::string                     to_str() const;
+    };
+
+    // Stop
+    struct Checker_Stop_Req
+    {
+        Checker_Stop_Req() :   user(-1) {}
+
+        int                     user;
+        std::vector<long>       ids;
+        std::string             to_str() const;
+    };
+
+    struct Checker_Stop_Res
+    {
+        ~Checker_Stop_Res();
 
         std::vector<long>               ok;
         std::vector<MediaConch_Nok*>    nok;
@@ -476,7 +495,7 @@ public:
 
     struct Checker_File_Information_Res
     {
-        Checker_File_Information_Res() : generated_id(-1), source_id(-1), generated_time((size_t)-1),
+        Checker_File_Information_Res() : source_id(-1), generated_time((size_t)-1),
                                          analyzed(false), has_error(false), nok(NULL) {}
         ~Checker_File_Information_Res();
 
@@ -486,7 +505,7 @@ public:
         std::string                                       generated_error_log;
         std::vector<std::pair<std::string,std::string> >  options;
         std::string                                       error_log;
-        long                                              generated_id;
+        std::vector<long>                                 generated_id;
         long                                              source_id;
         size_t                                            generated_time;
         bool                                              analyzed;
@@ -1007,6 +1026,7 @@ public:
     int serialize_checker_status_req(Checker_Status_Req& req, std::string&, std::string& err);
     int serialize_checker_report_req(Checker_Report_Req& req, std::string&, std::string& err);
     int serialize_checker_clear_req(Checker_Clear_Req& req, std::string&, std::string& err);
+    int serialize_checker_stop_req(Checker_Stop_Req& req, std::string&, std::string& err);
     int serialize_checker_list_req(Checker_List_Req& req, std::string&, std::string& err);
     int serialize_checker_validate_req(Checker_Validate_Req& req, std::string&, std::string& err);
     int serialize_checker_file_from_id_req(Checker_File_From_Id_Req& req, std::string&, std::string& err);
@@ -1051,6 +1071,7 @@ public:
     int serialize_checker_status_res(Checker_Status_Res& res, std::string&, std::string& err);
     int serialize_checker_report_res(Checker_Report_Res& res, std::string&, std::string& err);
     int serialize_checker_clear_res(Checker_Clear_Res& res, std::string&, std::string& err);
+    int serialize_checker_stop_res(Checker_Stop_Res& res, std::string&, std::string& err);
     int serialize_checker_list_res(Checker_List_Res& res, std::string&, std::string& err);
     int serialize_checker_validate_res(Checker_Validate_Res& res, std::string&, std::string& err);
     int serialize_checker_file_from_id_res(Checker_File_From_Id_Res& res, std::string&, std::string& err);
@@ -1094,6 +1115,7 @@ public:
     Checker_Status_Req                  *parse_checker_status_req(const std::string& data, std::string& err);
     Checker_Report_Req                  *parse_checker_report_req(const std::string& data, std::string& err);
     Checker_Clear_Req                   *parse_checker_clear_req(const std::string& data, std::string& err);
+    Checker_Stop_Req                    *parse_checker_stop_req(const std::string& data, std::string& err);
     Checker_List_Req                    *parse_checker_list_req(const std::string& data, std::string& err);
     Checker_Validate_Req                *parse_checker_validate_req(const std::string& data, std::string& err);
     Checker_File_From_Id_Req            *parse_checker_file_from_id_req(const std::string& data, std::string& err);
@@ -1139,6 +1161,7 @@ public:
     Checker_Status_Req                  *parse_uri_checker_status_req(const std::string& uri, std::string& err);
     Checker_Report_Req                  *parse_uri_checker_report_req(const std::string& uri, std::string& err);
     Checker_Clear_Req                   *parse_uri_checker_clear_req(const std::string& uri, std::string& err);
+    Checker_Stop_Req                    *parse_uri_checker_stop_req(const std::string& uri, std::string& err);
     Checker_List_Req                    *parse_uri_checker_list_req(const std::string& uri, std::string& err);
     Checker_Validate_Req                *parse_uri_checker_validate_req(const std::string& uri, std::string& err);
     Checker_File_From_Id_Req            *parse_uri_checker_file_from_id_req(const std::string& uri, std::string& err);
@@ -1182,6 +1205,7 @@ public:
     Checker_Status_Res                 *parse_checker_status_res(const std::string& data, std::string& err);
     Checker_Report_Res                 *parse_checker_report_res(const std::string& data, std::string& err);
     Checker_Clear_Res                  *parse_checker_clear_res(const std::string& data, std::string& err);
+    Checker_Stop_Res                   *parse_checker_stop_res(const std::string& data, std::string& err);
     Checker_List_Res                   *parse_checker_list_res(const std::string& data, std::string& err);
     Checker_Validate_Res               *parse_checker_validate_res(const std::string& data, std::string& err);
     Checker_File_From_Id_Res           *parse_checker_file_from_id_res(const std::string& data, std::string& err);

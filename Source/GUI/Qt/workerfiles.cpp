@@ -129,7 +129,7 @@ std::string WorkerFiles::get_filename_from_registered_file_id(long file_id)
 }
 
 //---------------------------------------------------------------------------
-void WorkerFiles::get_registered_files(std::map<std::string, FileRegistered>& files)
+void WorkerFiles::get_registered_files(std::map<std::string, FileRegistered*>& files)
 {
     working_files_mutex.lock();
     std::map<std::string, FileRegistered*>::iterator it = working_files.begin();
@@ -138,7 +138,7 @@ void WorkerFiles::get_registered_files(std::map<std::string, FileRegistered>& fi
         if (!it->second)
             continue;
 
-        files[it->first] = FileRegistered(*it->second);
+        files[it->first] = new FileRegistered(*it->second);
     }
     working_files_mutex.unlock();
 }
@@ -146,28 +146,52 @@ void WorkerFiles::get_registered_files(std::map<std::string, FileRegistered>& fi
 //---------------------------------------------------------------------------
 int WorkerFiles::add_file_to_list(const std::string& file, const std::string& path,
                                   int policy, int display, int verbosity, bool fixer,
-                                  std::string& err)
+                                  bool force, bool create_policy, const std::vector<std::string>& options, std::string& err)
 {
     std::string full_file(path);
-    if (path.length())
+#ifdef WINDOWS
+    if (full_file.size() && full_file[full_file.size() - 1] != '/' && full_file[full_file.size() - 1] != '\\')
         full_file += "/";
+#else
+    if (full_file.length())
+        full_file += "/";
+#endif
     full_file += file;
 
     bool exists = false;
     FileRegistered *fr = NULL;
     working_files_mutex.lock();
-    if (working_files.find(full_file) != working_files.end() && working_files[full_file])
+    std::map<std::string, FileRegistered*>::iterator it = working_files.find(full_file);
+    if (it != working_files.end() && it->second)
     {
         exists = true;
+        bool same_options = true;
+        for (size_t i = 0; i < it->second->options.size(); ++i)
+        {
+            size_t j = 0;
+            for (; j < options.size(); ++j)
+                if (options[j] == it->second->options[i])
+                    break;
+
+            if (j == options.size())
+            {
+                same_options = false;
+                break;
+            }
+        }
+
         // nothing to do
-        if (!fixer && policy == working_files[full_file]->policy && display == working_files[full_file]->display
-            && verbosity == working_files[full_file]->verbosity)
+        if (!force && !create_policy && same_options &&
+            policy == it->second->policy && display == it->second->display
+            && verbosity == it->second->verbosity)
         {
             working_files_mutex.unlock();
             return 0;
         }
         else
             fr = new FileRegistered;
+        if (!force)
+            fr->analyzed = working_files[full_file]->analyzed;
     }
     else
         fr = new FileRegistered;
@@ -187,6 +211,9 @@ int WorkerFiles::add_file_to_list(const std::string& file, const std::string& pa
     fr->policy = policy;
     fr->display = display;
     fr->verbosity = verbosity;
+    fr->create_policy = create_policy;
+    for (size_t i = 0; i < options.size(); ++i)
+        fr->options.push_back(options[i]);
 
     working_files_mutex.lock();
 
@@ -199,7 +226,7 @@ int WorkerFiles::add_file_to_list(const std::string& file, const std::string& pa
     unfinished_files.push_back(full_file);
     unfinished_files_mutex.unlock();
 
-    if (!fixer && exists)
+    if (!force && exists)
     {
         to_update_files_mutex.lock();
         to_update_files[full_file] = new FileRegistered(*fr);
@@ -212,7 +239,7 @@ int WorkerFiles::add_file_to_list(const std::string& file, const std::string& pa
 
     int ret;
     std::vector<long> files_id;
-    if ((ret = mainwindow->analyze(vec, fixer, files_id, err)) < 0)
+    if ((ret = mainwindow->analyze(vec, fixer, force, options, files_id, err)) < 0)
     {
         mainwindow->set_str_msg_to_status_bar(err);
         return -1;
@@ -238,9 +265,155 @@ int WorkerFiles::add_file_to_list(const std::string& file, const std::string& pa
 }
 
 //---------------------------------------------------------------------------
-void WorkerFiles::update_policy_of_file_registered_from_file(long file_id, int policy)
+int WorkerFiles::add_file_to_list(long id, const std::string& full_file, const std::string& filepath, const std::string& filename, std::string&)
+{
+    FileRegistered *fr = NULL;
+    working_files_mutex.lock();
+    if (working_files.find(full_file) != working_files.end() && working_files[full_file])
+    {
+        working_files_mutex.unlock();
+        return 1;
+    }
+    else
+        fr = new FileRegistered;
+    working_files_mutex.unlock();
+
+    // Keep the old index for the same file
+    fr->file_id = id;
+    fr->index = file_index++;
+
+    fr->filename = filename;
+    fr->filepath = filepath;
+    fr->policy = -1;
+    fr->display = -1;
+    fr->verbosity = 5;
+    fr->create_policy = false;
+
+    working_files_mutex.lock();
+    working_files[full_file] = fr;
+    working_files_mutex.unlock();
+
+    unfinished_files_mutex.lock();
+    unfinished_files.push_back(full_file);
+    unfinished_files_mutex.unlock();
+
+    to_add_files_mutex.lock();
+    to_add_files[full_file] = new FileRegistered(*fr);
+    to_add_files_mutex.unlock();
+
+    return 0;
+}
+
+//---------------------------------------------------------------------------
+int WorkerFiles::add_attachment_to_list(const std::string& file, int policy, int display,
+                                        int verbosity, const std::vector<std::string>& options, std::string& err)
+{
+    bool exists = false;
+    FileRegistered *fr = NULL;
+
+    working_files_mutex.lock();
+    std::map<std::string, FileRegistered*>::iterator it = working_files.find(file);
+    if (it != working_files.end() && it->second)
+    {
+        exists = true;
+        bool same_options = true;
+        for (size_t i = 0; i < it->second->options.size(); ++i)
+        {
+            size_t j = 0;
+            for (; j < options.size(); ++j)
+                if (options[j] == it->second->options[i])
+                    break;
+
+            if (j == options.size())
+            {
+                same_options = false;
+                break;
+            }
+        }
+
+        // nothing to do
+        if (same_options && policy == it->second->policy &&
+            display == it->second->display && verbosity == it->second->verbosity)
+        {
+            working_files_mutex.unlock();
+            return 0;
+        }
+        else
+            fr = new FileRegistered;
+        fr->analyzed = it->second->analyzed;
+    }
+    else
+        fr = new FileRegistered;
+    working_files_mutex.unlock();
+
+    // Keep the old index for the same file
+    if (exists)
+    {
+        fr->index = working_files[file]->index;
+        fr->file_id = working_files[file]->file_id;
+    }
+    else
+        fr->index = file_index++;
+
+    fr->filename = file;
+    fr->filepath = "";
+    fr->policy = policy;
+    fr->display = display;
+    fr->verbosity = verbosity;
+    fr->create_policy = false;
+    for (size_t i = 0; i < options.size(); ++i)
+        fr->options.push_back(options[i]);
+
+    working_files_mutex.lock();
+
+    if (exists)
+        delete working_files[file];
+    working_files[file] = fr;
+    working_files_mutex.unlock();
+
+    unfinished_files_mutex.lock();
+    unfinished_files.push_back(file);
+    unfinished_files_mutex.unlock();
+
+    if (exists)
+    {
+        to_update_files_mutex.lock();
+        to_update_files[file] = new FileRegistered(*fr);
+        to_update_files_mutex.unlock();
+        return 0;
+    }
+
+    std::vector<std::string> vec;
+    vec.push_back(file);
+
+    int ret;
+    std::vector<long> files_id;
+    if ((ret = mainwindow->analyze(vec, false, false, options, files_id, err)) < 0)
+    {
+        mainwindow->set_str_msg_to_status_bar(err);
+        return -1;
+    }
+
+    if (files_id.size() != 1)
+    {
+        err = "Internal error: analyze result is not correct, no id returned.";
+        return -1;
+    }
+
+    fr->file_id = files_id[0];
+
+    working_files_mutex.lock();
+    working_files[file]->file_id = files_id[0];
+    working_files_mutex.unlock();
+
+    return 0;
+}
+
+//---------------------------------------------------------------------------
+int WorkerFiles::update_policy_of_file_registered_from_file(long file_id, long policy, std::string& error)
 {
     std::string file;
+    FileRegistered* fr = NULL;
     working_files_mutex.lock();
     std::map<std::string, FileRegistered*>::iterator it = working_files.begin();
     for (; it != working_files.end(); ++it)
@@ -249,24 +422,32 @@ void WorkerFiles::update_policy_of_file_registered_from_file(long file_id, int p
             continue;
 
         file = it->first;
+        fr = it->second;
         break;
     }
 
-    if (!file.size())
+    if (!fr)
     {
         // file is not existing
+        error = "File not reachable";
         working_files_mutex.unlock();
-        return;
+        return -1;
     }
 
-    working_files[file]->policy = policy;
+    fr->policy = policy;
 
     bool policy_valid = false;
-    if (working_files[file]->analyzed && policy >= 0)
+    if (!fr->analyzed)
     {
+        error = "File not analyzed";
         working_files_mutex.unlock();
+        return -1;
+    }
 
-        std::string err;
+    working_files_mutex.unlock();
+
+    if (policy >= 0)
+    {
         std::vector<size_t> policies_ids;
         std::vector<std::string> policies_contents;
         std::vector<MediaConchLib::Checker_ValidateRes*> res;
@@ -274,24 +455,27 @@ void WorkerFiles::update_policy_of_file_registered_from_file(long file_id, int p
         policies_ids.push_back(policy);
 
         if (mainwindow->validate(MediaConchLib::report_Max, file,
-                                 policies_ids, policies_contents, options, res, err) == 0 && res.size() == 1)
+                                 policies_ids, policies_contents, options, res, error) < 0)
+            return -1;
+
+        if (res.size() == 1)
         {
             policy_valid = res[0]->valid;
             for (size_t j = 0; j < res.size() ; ++j)
                 delete res[j];
             res.clear();
         }
-
-        working_files_mutex.lock();
     }
 
+    working_files_mutex.lock();
     working_files[file]->policy_valid = policy_valid;
-    FileRegistered fr = *working_files[file];
+    FileRegistered tmp = *working_files[file];
     working_files_mutex.unlock();
 
     to_update_files_mutex.lock();
-    to_update_files[file] = new FileRegistered(fr);
+    to_update_files[file] = new FileRegistered(tmp);
     to_update_files_mutex.unlock();
+    return 0;
 }
 
 //---------------------------------------------------------------------------
@@ -365,7 +549,14 @@ void WorkerFiles::update_update_files_registered()
     {
         std::map<std::string, FileRegistered*>::iterator it = to_update_files.begin();
         for (; it != to_update_files.end(); ++it)
+        {
+            if (!it->second)
+                continue;
+
             vec.push_back(it->second);
+            if (it->second->create_policy)
+                mainwindow->create_policy_from_file(it->second);
+        }
         to_update_files.clear();
     }
     to_update_files_mutex.unlock();
@@ -383,13 +574,18 @@ void WorkerFiles::update_update_files_registered()
 void WorkerFiles::update_delete_files_registered()
 {
     std::vector<FileRegistered*> vec;
+    std::vector<long> ids;
 
     to_delete_files_mutex.lock();
     if (to_delete_files.size())
     {
         std::map<std::string, FileRegistered*>::iterator it = to_delete_files.begin();
         for (; it != to_delete_files.end(); ++it)
+        {
             vec.push_back(it->second);
+            if (it->second)
+                ids.push_back(it->second->file_id);
+        }
         to_delete_files.clear();
     }
     to_delete_files_mutex.unlock();
@@ -398,6 +594,7 @@ void WorkerFiles::update_delete_files_registered()
         return;
 
     remove_registered_files_from_db(vec);
+    mainwindow->checker_stop(ids);
     for (size_t i = 0; i < vec.size(); ++i)
         delete vec[i];
     vec.clear();
@@ -436,6 +633,9 @@ void WorkerFiles::update_unfinished_files()
             fr->report_kind = MediaConchLib::report_MediaConch;
             if (st_res.tool)
                 fr->report_kind = *st_res.tool;
+
+            for (size_t x = 0; x < st_res.generated_id.size(); ++x)
+                fr->generated_id.push_back(st_res.generated_id[x]);
 
             std::vector<size_t> policies_ids;
             std::vector<std::string> policies_contents;
@@ -523,25 +723,60 @@ void WorkerFiles::update_unfinished_files()
 }
 
 //---------------------------------------------------------------------------
-void WorkerFiles::remove_file_registered_from_file(const std::string& file)
+void WorkerFiles::remove_file_registered_from_id(long file_id)
 {
+    std::string file;
+    FileRegistered *fr = NULL;
     working_files_mutex.lock();
-    std::map<std::string, FileRegistered*>::iterator it = working_files.find(file);
-    if (it == working_files.end() || !working_files[file])
+    std::map<std::string, FileRegistered*>::iterator it = working_files.begin();
+    for (; it != working_files.end(); ++it)
     {
-        working_files_mutex.unlock();
-        return;
+        if (!it->second)
+            continue;
+
+        if (it->second->file_id == file_id)
+        {
+            fr = it->second;
+            file = it->first;
+            it->second = NULL;
+            working_files.erase(it);
+            break;
+        }
     }
-
-    FileRegistered* fr = working_files[file];
-
-    working_files[file] = NULL;
-    working_files.erase(it);
     working_files_mutex.unlock();
+
+    if (!fr)
+        return;
 
     to_delete_files_mutex.lock();
     to_delete_files[file] = fr;
     to_delete_files_mutex.unlock();
+}
+
+//---------------------------------------------------------------------------
+void WorkerFiles::remove_all_files_registered()
+{
+    std::string file;
+    FileRegistered *fr = NULL;
+
+    working_files_mutex.lock();
+    std::map<std::string, FileRegistered*>::iterator it = working_files.begin();
+    for (; it != working_files.end(); ++it)
+    {
+        if (!it->second)
+            continue;
+
+        fr = it->second;
+        file = it->first;
+        it->second = NULL;
+
+        to_delete_files_mutex.lock();
+        to_delete_files[file] = fr;
+        to_delete_files_mutex.unlock();
+    }
+    working_files.clear();
+    working_files_mutex.unlock();
+
 }
 
 //---------------------------------------------------------------------------
@@ -559,7 +794,15 @@ void WorkerFiles::add_registered_files_to_db(const std::vector<FileRegistered*>&
     if (!db)
         return;
 
-    db->ui_add_files(files);
+    for (size_t i = 0; i < files.size();)
+    {
+        std::vector<FileRegistered*> tmp;
+        size_t j = 0;
+        for (; j < 50 && i + j < files.size(); ++j)
+            tmp.push_back(files[i + j]);
+        db->ui_add_files(tmp);
+        i += j;
+    }
 }
 
 //---------------------------------------------------------------------------
@@ -634,8 +877,13 @@ void WorkerFiles::fill_registered_files_from_db()
         FileRegistered *fr = vec[i];
 
         std::string full_file(fr->filepath);
+#ifdef WINDOWS
+        if (full_file.size() && full_file[full_file.size() - 1] != '/' && full_file[full_file.size() - 1] != '\\')
+            full_file += "/";
+#else
         if (full_file.length())
             full_file += "/";
+#endif
         full_file += fr->filename;
 
         //check if policy still exists
@@ -658,7 +906,7 @@ void WorkerFiles::fill_registered_files_from_db()
 
         int ret;
         std::vector<long> files_id;
-        if ((ret = mainwindow->analyze(tmp, false, files_id, err2)) < 0)
+        if ((ret = mainwindow->analyze(tmp, false, false, fr->options, files_id, err2)) < 0)
             mainwindow->set_str_msg_to_status_bar(err2);
         else if (!files_id.size())
             mainwindow->set_str_msg_to_status_bar("Internal error: Analyze result is not correct.");

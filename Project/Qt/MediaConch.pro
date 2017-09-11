@@ -38,8 +38,15 @@ isEmpty(WEB_MACHINE) {
     }
 }
 
+!defined(packagesExist, test) {
+    defineTest(packagesExist) {
+        system(pkg-config $$ARGS): return(true)
+        return(false)
+    }
+}
+
 !macx:TARGET = mediaconch-implementation-gui
-macx:TARGET = MediaConch-Implementation-GUI
+macx:TARGET = MediaConch-Implementation
 TEMPLATE = app
 
 CONFIG += qt release
@@ -51,6 +58,7 @@ DEFINES          +=  _UNICODE
 
 SOURCES          += ../../Source/Common/MediaConchLib.cpp \
                     ../../Source/Common/Core.cpp \
+                    ../../Source/Common/Reports.cpp \
                     ../../Source/Common/Schema.cpp \
                     ../../Source/Common/Xslt.cpp \
                     ../../Source/Common/Policies.cpp \
@@ -78,15 +86,17 @@ SOURCES          += ../../Source/Common/MediaConchLib.cpp \
                     ../../Source/Common/Plugin.cpp \
                     ../../Source/Common/VeraPDF.cpp \
                     ../../Source/Common/DpfManager.cpp \
-                    ../../Source/Common/FFmpeg.cpp \
+                    ../../Source/Common/PluginPreHook.cpp \
                     ../../Source/Common/PluginFileLog.cpp \
                     ../../Source/Common/WatchFoldersManager.cpp \
                     ../../Source/Common/WatchFolder.cpp \
                     ../../Source/GUI/Qt/main.cpp \
+                    ../../Source/GUI/Qt/commonwebwindow.cpp \
                     ../../Source/GUI/Qt/helpwindow.cpp \
                     ../../Source/GUI/Qt/mainwindow.cpp \
                     ../../Source/GUI/Qt/settingswindow.cpp \
                     ../../Source/GUI/Qt/displaywindow.cpp \
+                    ../../Source/GUI/Qt/databasewindow.cpp \
                     ../../Source/GUI/Qt/checkerwindow.cpp \
                     ../../Source/GUI/Qt/resulttable.cpp \
                     ../../Source/GUI/Qt/policieswindow.cpp \
@@ -101,6 +111,7 @@ SOURCES          += ../../Source/Common/MediaConchLib.cpp \
 
 HEADERS          += ../../Source/Common/MediaConchLib.h \
                     ../../Source/Common/Core.h \
+                    ../../Source/Common/Reports.h \
                     ../../Source/Common/Schema.h \
                     ../../Source/Common/Xslt.h \
                     ../../Source/Common/JS_Tree.h \
@@ -140,10 +151,11 @@ HEADERS          += ../../Source/Common/MediaConchLib.h \
                     ../../Source/Common/PluginFormat.h \
                     ../../Source/Common/VeraPDF.h \
                     ../../Source/Common/DpfManager.h \
-                    ../../Source/Common/FFmpeg.h \
+                    ../../Source/Common/PluginPreHook.h \
                     ../../Source/Common/PluginLog.h \
                     ../../Source/Common/PluginFileLog.h \
                     ../../Source/Common/WatchFoldersManager.h \
+                    ../../Source/GUI/Qt/commonwebwindow.h \
                     ../../Source/GUI/Qt/helpwindow.h \
                     ../../Source/GUI/Qt/WebPage.h \
                     ../../Source/GUI/Qt/WebCommonPage.h \
@@ -153,6 +165,7 @@ HEADERS          += ../../Source/Common/MediaConchLib.h \
                     ../../Source/GUI/Qt/checkerwindow.h \
                     ../../Source/GUI/Qt/resulttable.h \
                     ../../Source/GUI/Qt/displaywindow.h \
+                    ../../Source/GUI/Qt/databasewindow.h \
                     ../../Source/GUI/Qt/policieswindow.h \
                     ../../Source/GUI/Qt/progressbar.h \
                     ../../Source/GUI/Qt/workerfiles.h \
@@ -301,14 +314,15 @@ contains(NO_LIBEVENT, yes|1) {
     }
 }
 
-contains(NO_LIBCURL, yes|1) {
-    message("use libcurl : no")
-} else {
-    message("use libcurl : yes (from libmediainfo)")
-    DEFINES += MEDIAINFO_LIBCURL_YES
+macx:contains(MACSTORE, yes|1) {
+    QMAKE_CFLAGS += -gdwarf-2
+    QMAKE_CXXFLAGS += -gdwarf-2
+    QMAKE_INFO_PLIST = ../Mac/Info.plist
+    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.9
+} else:macx {
+    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.5
 }
 
-macx:QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.5
 LIBS             += -lz
 !macx:LIBS       += -ldl -lrt
 

@@ -136,6 +136,10 @@ static void change_short_options_to_long(std::string& argument)
         argument = "--format=JSTREE";
     if (argument=="-fh")
         argument = "--format=HTML";
+    if (argument=="-fc")
+        argument = "--format=CSV";
+    if (argument=="-fs")
+        argument = "--format=SIMPLE";
 
     // Compression short options
     if (argument=="-cz")
@@ -191,6 +195,7 @@ int Parse(MediaConch::CLI* cli, std::string& argument)
     OPTION("--pluginsconfiguration",                        PluginsConfiguration)
     OPTION("--fileinformation",                             FileInformation)
     OPTION("--user",                                        User)
+    OPTION("--list",                                        List)
     //Default
     OPTION("--",                                            Default)
     else
@@ -465,6 +470,16 @@ CL_OPTION(User)
     std::string user;
     user.assign(argument, egal_pos + 1 , std::string::npos);
     cli->set_user_to_use(user);
+
+    return CLI_RETURN_NONE;
+}
+
+//---------------------------------------------------------------------------
+CL_OPTION(List)
+{
+    //Form : --list
+    (void)argument;
+    cli->set_list_mode();
 
     return CLI_RETURN_NONE;
 }

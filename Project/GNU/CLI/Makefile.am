@@ -8,6 +8,7 @@ mediaconch_implementation_SOURCES = \
     ../../../Source/CLI/Help.cpp \
     ../../../Source/Common/MediaConchLib.cpp \
     ../../../Source/Common/Core.cpp \
+    ../../../Source/Common/Reports.cpp \
     ../../../Source/Common/DaemonClient.cpp \
     ../../../Source/Common/Schema.cpp \
     ../../../Source/Common/Xslt.cpp \
@@ -35,25 +36,34 @@ mediaconch_implementation_SOURCES = \
     ../../../Source/Common/Plugin.cpp \
     ../../../Source/Common/VeraPDF.cpp \
     ../../../Source/Common/DpfManager.cpp \
-    ../../../Source/Common/FFmpeg.cpp \
+    ../../../Source/Common/PluginPreHook.cpp \
     ../../../Source/Common/PluginFileLog.cpp \
     ../../../Source/Common/WatchFoldersManager.cpp \
     ../../../Source/Common/WatchFolder.cpp
 
-#mediaconch_implementation_LDFLAGS     = -no-undefined -version-info 0:0:0
+#mediaconch_LDFLAGS     = -no-undefined -version-info 0:0:0
 mediaconch_implementation_CPPFLAGS = $(XML_CFLAGS)
 mediaconch_implementation_LDFLAGS= $(XML_LIBS)
 
 INCLUDES = -I../../../Source -I../../../../MediaInfoLib/Source -I../../../../ZenLib/Source
 
+AM_TESTS_FD_REDIRECT = 9>&2
+
 TESTS = \
     test/simple.sh \
     test/filename.sh \
+    test/test_mk.sh \
     test/test_ffv1.sh
 
 SAMPLES_DIR = test/SampleFiles
+CHECKS_DIR = test/ImplementationChecks
 
 clone_sample_files: $(SAMPLES_DIR)
 
+clone_checks_files: $(CHECKS_DIR)
+
 $(SAMPLES_DIR):
 	git clone https://github.com/MediaArea/MediaConch_SampleFiles test/SampleFiles
+
+$(CHECKS_DIR):
+	git clone https://github.com/MediaArea/groundtruth test/ImplementationChecks

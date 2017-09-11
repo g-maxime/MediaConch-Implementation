@@ -38,15 +38,19 @@ public:
 
     // functions
     int add_file_to_list(const std::string& file, const std::string& path, int policy, int display,
-                         int verbosity, bool fixer, std::string& err);
+                         int verbosity, bool fixer, bool force, bool, const std::vector<std::string>&, std::string& err);
+    int add_file_to_list(long id, const std::string& file, const std::string&, const std::string&, std::string& err);
+    int add_attachment_to_list(const std::string& file, int policy, int display, int verbosity,
+                               const std::vector<std::string>& options, std::string& err);
     void clear_files();
     FileRegistered* get_file_registered_from_file(const std::string& file);
     FileRegistered* get_file_registered_from_id(long id);
-    void remove_file_registered_from_file(const std::string& file);
-    void get_registered_files(std::map<std::string, FileRegistered>& files);
+    void remove_file_registered_from_id(long file_id);
+    void remove_all_files_registered();
+    void get_registered_files(std::map<std::string, FileRegistered*>& files);
     long get_id_from_registered_file(const std::string& file);
     std::string get_filename_from_registered_file_id(long file_id);
-    void update_policy_of_file_registered_from_file(long file_id, int policy);
+    int update_policy_of_file_registered_from_file(long file_id, long policy, std::string& error);
 
 private:
     void add_registered_file_to_db(const FileRegistered* file);

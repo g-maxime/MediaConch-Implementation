@@ -36,18 +36,19 @@ All open source digital assets for the software developed by MediaArea during th
 # How to build MediaConch
 
 [![Build Status](https://travis-ci.org/MediaArea/MediaConch_SourceCode.svg?branch=master)](https://travis-ci.org/MediaArea/MediaConch_SourceCode)
+[![Build status](https://ci.appveyor.com/api/projects/status/xnoysoqp5i0075fk/branch/master?svg=true)](https://ci.appveyor.com/project/MediaArea/mediaconch-sourcecode/branch/master)
 
 ## Build under Unix (Mac and Linux)
 
 First, you must create a directory which will receive the MediaConch directory, and some of its dependencies depending on your configuration: ZenLib and MediaInfoLib if you decide to compile them yourself, and under Mac libxml2 and libxslt.
 
-In this document, this directory will be refered as $BUILD_DIR.
+In this document, this directory will be referred as $BUILD_DIR.
 
 ### Dependancies under Mac
 
 #### macport
 
-Some dependencies are availables with macport. To install macport:
+Some dependencies are available with macport. To install macport:
 https://guide.macports.org/#installing
 
 ```sh
@@ -264,7 +265,7 @@ Unzip the corresponding srcXX.zip, and then launch
 
 in order to compile, respectively, the CLI, the server and the GUI.
 
-#### Build manually from github
+#### Build manually from GitHub
 
 When you have done all the prerequisite for you configuration, you can build MediaConch. We start with the CLI.
 
@@ -325,19 +326,19 @@ cd MediaConch_SourceCode/Project/Qt
 Run:
 
 ```sh
-./prepare NO_LIBCURL=1
+./prepare
 make
 ```
 
 Under Mac, or if you also build ZenLib and MediaInfoLib, run:
 ```sh
-./prepare STATIC_LIBS=1 NO_LIBCURL=1
+./prepare STATIC_LIBS=1
 make
 ```
 
 With shared ZenLib and MediaInfoLib:
 ```sh
-./prepare NO_LIBCURL=1
+./prepare
 make
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$BUILD_DIR/ZenLib/Project/GNU/Library/.libs:$BUILD_DIR/MediaInfoLib/Project/GNU/Library/.libs
 ```
@@ -347,19 +348,19 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$BUILD_DIR/ZenLib/Project/GNU/Library/.l
 You must install the online checker dependencies. Then run:
 
 ```sh
-./prepare "DEFINES+=MEDIAINFO_LIBCURL_YES"
+./prepare
 make
 ```
 
 Under Mac, or if you also build ZenLib and MediaInfoLib, run:
 ```sh
-./prepare STATIC_LIBS=1 "DEFINES+=MEDIAINFO_LIBCURL_YES"
+./prepare STATIC_LIBS=1
 make
 ```
 
 With shared ZenLib and MediaInfoLib:
 ```sh
-./prepare "DEFINES+=MEDIAINFO_LIBCURL_YES"
+./prepare
 make
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$BUILD_DIR/ZenLib/Project/GNU/Library/.libs:$BUILD_DIR/MediaInfoLib/Project/GNU/Library/.libs
 ```

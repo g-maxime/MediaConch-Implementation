@@ -9,14 +9,13 @@
         <file alias="webengine.js">html/js/webengine.js</file>
         <file alias="settings.html">html/settings.html</file>
         <file alias="checker.html">html/checker.html</file>
-        <file alias="result.html">html/result.html</file>
-        <file alias="resultTableRow.html">html/resultTableRow.html</file>
         <file alias="formUpload.html">html/formUpload.html</file>
         <file alias="formOnline.html">html/formOnline.html</file>
         <file alias="formRepository.html">html/formRepository.html</file>
         <file alias="xsltPolicy.html">html/xslPolicy.html</file>
         <file alias="publicPolicies.html">html/publicPolicies.html</file>
         <file alias="display.html">html/display.html</file>
+        <file alias="database.html">html/database.html</file>
         <file alias="jquery.js">html/js/jquery-1.12.4.min.js</file>
         <file alias="bootstrap.js">html/js/bootstrap.min.js</file>
         <file alias="jstree.js">html/js/jstree.min.js</file>
@@ -26,8 +25,14 @@
         <file alias="utils/text.js">html/js/utils/text.js</file>
         <file alias="utils/functions.js">html/js/utils/functions.js</file>
         <file alias="utils/url.js">html/js/utils/url.js</file>
-        <file alias="checker.js">html/js/checker.js</file>
+        <file alias="utils/size.js">html/js/utils/size.js</file>
         <file alias="menu.js">html/js/menu.js</file>
+        <file alias="checker/base.js">html/js/checker/base.js</file>
+        <file alias="checker/cellImplementation.js">html/js/checker/cellImplementation.js</file>
+        <file alias="checker/cellStatus.js">html/js/checker/cellStatus.js</file>
+        <file alias="checker/table.js">html/js/checker/table.js</file>
+        <file alias="checker/webengine.js">html/js/checker/webengine.js</file>
+        <file alias="checker/webkit.js">html/js/checker/webkit.js</file>
         <file alias="policy.js">html/js/policy.js</file>
         <file alias="policyTree.js">html/js/policyTree.js</file>
         <file alias="policyTreePolicies.js">html/js/policyTreePolicies.js</file>
@@ -46,6 +51,9 @@
         <file alias="users/userWebKit.js">html/js/users/userWebKit.js</file>
         <file alias="message.js">html/js/message.js</file>
         <file alias="display.js">html/js/display.js</file>
+        <file alias="database/database.js">html/js/database/database.js</file>
+        <file alias="database/databaseWebEngine.js">html/js/database/databaseWebEngine.js</file>
+        <file alias="database/databaseWebKit.js">html/js/database/databaseWebKit.js</file>
         <file alias="settings.js">html/js/settings.js</file>
         <file alias="main.css">html/css/main.css</file>
         <file alias="main-gui.css">html/css/main-gui.css</file>
@@ -70,6 +78,8 @@
         <file alias="MediaConchXml.xsl">displays/MediaConchXml.xsl</file>
         <file alias="MediaConchText.xsl">displays/MediaConchText.xsl</file>
         <file alias="MediaConchTextUnicode.xsl">displays/MediaConchTextUnicode.xsl</file>
+        <file alias="MediaConchSimple.xsl">displays/MediaConchSimple.xsl</file>
+        <file alias="MediaConchCSV.xsl">displays/MediaConchCSV.xsl</file>
     </qresource>
     <qresource prefix="/Help">
         <file alias="/About/About.html">../../License.html</file>

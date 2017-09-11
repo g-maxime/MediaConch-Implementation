@@ -1,12 +1,13 @@
 AUTOMAKE_OPTIONS = foreign subdir-objects
 
-bin_PROGRAMS = mediaconchd
-mediaconchd_SOURCES = \
+bin_PROGRAMS = mediaconch-implementationd
+mediaconch_implementationd_SOURCES = \
     ../../../Source/Daemon/Daemon_Main.cpp \
     ../../../Source/Daemon/Daemon.cpp \
     ../../../Source/Daemon/Help.cpp \
     ../../../Source/Common/MediaConchLib.cpp \
     ../../../Source/Common/Core.cpp \
+    ../../../Source/Common/Reports.cpp \
     ../../../Source/Common/DaemonClient.cpp \
     ../../../Source/Common/Schema.cpp \
     ../../../Source/Common/Xslt.cpp \
@@ -34,13 +35,13 @@ mediaconchd_SOURCES = \
     ../../../Source/Common/Plugin.cpp \
     ../../../Source/Common/VeraPDF.cpp \
     ../../../Source/Common/DpfManager.cpp \
-    ../../../Source/Common/FFmpeg.cpp \
+    ../../../Source/Common/PluginPreHook.cpp \
     ../../../Source/Common/PluginFileLog.cpp \
     ../../../Source/Common/WatchFoldersManager.cpp \
     ../../../Source/Common/WatchFolder.cpp
 
 #mediaconchd_LDFLAGS     = -no-undefined -version-info 0:0:0
-mediaconchd_CPPFLAGS = $(XML_CFLAGS)
-mediaconchd_LDFLAGS= $(XML_LIBS)
+mediaconch_implementationd_CPPFLAGS = $(XML_CFLAGS)
+mediaconch_implementationd_LDFLAGS= $(XML_LIBS)
 
 INCLUDES = -I../../../Source -I../../../../MediaInfoLib/Source -I../../../../ZenLib/Source

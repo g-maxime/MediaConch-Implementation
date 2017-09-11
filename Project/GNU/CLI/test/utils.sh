@@ -7,22 +7,27 @@ DATA=
 
 if [ ! -f "$UTILS_PATH/mediaconch.xsd" ]
 then
-    wget https://github.com/tribouille/MediaAreaXml/raw/master/mediaconch.xsd -O "$UTILS_PATH/mediaconch.xsd"
+    wget https://github.com/MediaArea/MediaAreaXml/raw/master/mediaconch.xsd -O "$UTILS_PATH/mediaconch.xsd"
 fi
 
 if [ ! -f "$UTILS_PATH/mediainfo.xsd" ]
 then
-    wget https://github.com/tribouille/MediaAreaXml/raw/master/mediainfo.xsd -O "$UTILS_PATH/mediainfo.xsd"
+    wget https://github.com/MediaArea/MediaAreaXml/raw/master/mediainfo.xsd -O "$UTILS_PATH/mediainfo.xsd"
 fi
 
 if [ ! -f "$UTILS_PATH/mediatrace.xsd" ]
 then
-    wget https://github.com/tribouille/MediaAreaXml/raw/master/mediatrace.xsd -O "$UTILS_PATH/mediatrace.xsd"
+    wget https://github.com/MediaArea/MediaAreaXml/raw/master/mediatrace.xsd -O "$UTILS_PATH/mediatrace.xsd"
+fi
+
+if [ ! -f "$UTILS_PATH/micromediatrace.xsd" ]
+then
+    wget https://github.com/MediaArea/MediaAreaXml/raw/master/micromediatrace.xsd -O "$UTILS_PATH/micromediatrace.xsd"
 fi
 
 if [ ! -f "$UTILS_PATH/mediaarea.xsd" ]
 then
-    wget https://github.com/tribouille/MediaAreaXml/raw/master/mediaarea.xsd -O "$UTILS_PATH/mediaarea.xsd"
+    wget https://github.com/MediaArea/MediaAreaXml/raw/master/mediaarea.xsd -O "$UTILS_PATH/mediaarea.xsd"
 fi
 
 cmd_is_ok()

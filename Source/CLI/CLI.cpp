@@ -14,6 +14,8 @@
 #include "CLI.h"
 #include "CommandLine_Parser.h"
 #include "Help.h"
+#include "Common/Reports.h"
+#include <Common/MediaConchLib.h>
 #include <ZenLib/ZtringList.h>
 #include <ZenLib/File.h>
 #include <ZenLib/Dir.h>
@@ -21,6 +23,14 @@
 #if !defined(WINDOWS)
     #include <unistd.h>
 #endif //!defined(WINDOWS)
+
+#ifdef HAVE_GLOB
+    #include <glob.h>
+#endif
+
+#ifndef GLOB_TILDE
+#define GLOB_TILDE 0
+#endif
 
 //****************************************************************************
 // Extern
@@ -32,6 +42,47 @@ extern ZenLib::Ztring LogFile_FileName;
 namespace MediaConch
 {
 
+//****************************************************************************
+// Event to manage
+//****************************************************************************
+
+//--------------------------------------------------------------------------
+void Log_0(struct MediaInfo_Event_Log_0* Event)
+{
+    MediaInfoLib::String MessageString;
+
+    if (Event->Type >= 0xC0)
+        MessageString += __T("E: ");
+
+#if defined(UNICODE) || defined (_UNICODE)
+    MessageString+=Event->MessageStringU;
+#else //defined(UNICODE) || defined (_UNICODE)
+    MessageString+=Event->MessageStringA;
+#endif //defined(UNICODE) || defined (_UNICODE)
+
+    //Special cases
+    switch (Event->MessageCode)
+    {
+    case 0xF1010101:
+        MessageString+=__T(" If you want to use such protocols, compile libcurl with SSL/SSH support");
+        break;
+    case 0xF1010102:
+    case 0xF1010103:
+        MessageString += __T(" If you are in a secure environment, do \"ssh %YourServerName%\" in order to add the fingerprint to the known_hosts file. If you want to ignore security issues, use --Ssh_IgnoreSecurity option");
+        break;
+    case 0xF1010104:
+        MessageString += __T(" If you want to ignore security issues, use --Ssl_IgnoreSecurity option.");
+        break;
+    default:
+        break;
+    }
+
+    if (Event->Type >= 0x80)
+        STRINGERR(MessageString);
+    else
+        STRINGOUT(MessageString);
+}
+
     //**************************************************************************
     // CLI
     //**************************************************************************
@@ -40,9 +91,10 @@ namespace MediaConch
     CLI::CLI() : watch_folder_user(NULL), use_as_user(-1), use_daemon(false), asynchronous(false),
                  force_analyze(false), mil_analyze(true),
                  watch_folder_recursive(true), create_policy_mode(false), file_information(false),
-                 plugins_list_mode(false), list_watch_folders_mode(false), no_needs_files_mode(false)
+                 plugins_list_mode(false), list_watch_folders_mode(false), no_needs_files_mode(false),
+                 list_mode(false)
     {
-        format = MediaConchLib::format_Text;
+        format = MediaConchLib::format_Max;
     }
 
     //--------------------------------------------------------------------------
@@ -53,6 +105,12 @@ namespace MediaConch
     //--------------------------------------------------------------------------
     int CLI::init(std::string& err)
     {
+        if (format == MediaConchLib::format_CSV && !policies.size())
+        {
+            err = "CLI can use CSV format only with policies.";
+            return CLI_RETURN_ERROR;
+        }
+
         if (!no_needs_files_mode)
         {
             // If no filenames (and no options)
@@ -67,23 +125,36 @@ namespace MediaConch
             if (!MCL.get_implementation_schema_file().length())
                 MCL.create_default_implementation_schema();
 
-            if (!MCL.ReportAndFormatCombination_IsValid(files, report_set, display_file,
+            if (!MCL.ReportAndFormatCombination_IsValid(files, report_set, display_content,
                                                         format, err))
             {
                 if (err == "MicroMediaTrace requires an XML output.")
                     err += " Add -fx.";
-                return -1;
+                return CLI_RETURN_ERROR;
             }
+
+            if (report_set[MediaConchLib::report_MediaInfo]
+                && format == MediaConchLib::format_Max
+                && display_content.empty())
+                format = MediaConchLib::format_Text;
+
+            if (format == MediaConchLib::format_Max && display_content.empty())
+                format = MediaConchLib::format_Simple;
+            else if (format == MediaConchLib::format_Max && !display_content.empty())
+                format = MediaConchLib::format_Xml;
         }
 
         MCL.set_configuration_file(configuration_file);
         MCL.set_plugins_configuration_file(plugins_configuration_file);
 
         if (MCL.init(err) < 0)
-            return -1;
+            return CLI_RETURN_ERROR;
 
         use_daemon = MCL.get_use_daemon();
-        return 0;
+
+        MCL.register_log_callback(&Log_0);
+
+        return CLI_RETURN_NONE;
     }
 
     //--------------------------------------------------------------------------
@@ -116,12 +187,15 @@ namespace MediaConch
     //--------------------------------------------------------------------------
     int CLI::run(std::string& err)
     {
-        std::vector<long> id_to_report;
-        MediaConchLib::report report_kind;
+        CheckerReport cr;
+        MediaConchLib::report report_kind = MediaConchLib::report_Max;
 
         //Return plugins list
         if (plugins_list_mode)
             return run_plugins_list(err);
+        //Return list files
+        else if (list_mode)
+            return run_list_files(err);
 
         //Return file information
         if (file_information)
@@ -131,6 +205,7 @@ namespace MediaConch
         {
             bool registered = false;
             long file_id = -1;
+            std::vector<long> file_ids;
             int ret = MCL.checker_analyze(use_as_user, files[i], plugins, options, registered,
                                           file_id, err, force_analyze, mil_analyze);
             if (ret < 0)
@@ -145,12 +220,15 @@ namespace MediaConch
                 STRINGOUT(ZenLib::Ztring().From_UTF8(str.str()));
             }
 
-            int ready = is_ready(file_id, report_kind, err);
+            int ready = is_ready(file_id, file_ids, report_kind, err);
             if (ready == MediaConchLib::errorHttp_NONE)
                 continue;
             else if (ready < 0)
                 //TODO: PROBLEM
                 return -1;
+
+            if (report_kind == MediaConchLib::report_Max)
+                report_kind = MediaConchLib::report_MediaConch;
 
             if (report_set[MediaConchLib::report_MediaConch] &&
                 report_kind > MediaConchLib::report_MediaTrace && report_kind < MediaConchLib::report_Max &&
@@ -159,18 +237,20 @@ namespace MediaConch
                 set_report_reset();
                 report_set.set(report_kind);
             }
-            id_to_report.push_back(file_id);
-        }
 
-        std::map<std::string, std::string> options;
+            for (size_t j = 0; j < file_ids.size(); ++j)
+                cr.files.push_back(file_ids[j]);
+        }
 
         //Output
         MediaConchLib::Checker_ReportRes result;
-        std::vector<size_t> policies_ids;
-        policies.clear();
-        options["verbosity"] = MCL.get_implementation_verbosity();
-        MCL.checker_get_report(use_as_user, report_set, format, id_to_report, policies_ids,
-                               policies, options, &result, error, &display_file, NULL);
+        cr.user = use_as_user;
+        cr.report_set = report_set;
+        cr.format = format;
+        cr.options["verbosity"] = MCL.get_implementation_verbosity();
+
+        cr.display_content = &display_content;
+        MCL.checker_get_report(cr, &result, error);
         MediaInfoLib::String report_mi = ZenLib::Ztring().From_UTF8(result.report);
 
         STRINGOUT(report_mi);
@@ -276,6 +356,31 @@ namespace MediaConch
     }
 
     //--------------------------------------------------------------------------
+    int CLI::run_list_files(std::string& err)
+    {
+        std::vector<std::string> list;
+        if (MCL.checker_list(use_as_user, list, err) < 0)
+            return -1;
+
+        std::stringstream out;
+        out << "{\"files_analyzed\":[";
+
+        for (size_t i = 0; i < list.size(); ++i)
+        {
+            if (i)
+                out << ", ";
+            out << "\"" << list[i] << "\"";
+        }
+
+        out << "]}";
+
+        MediaInfoLib::String out_str = ZenLib::Ztring().From_UTF8(out.str());
+        STRINGOUT(out_str);
+
+        return 0;
+    }
+
+    //--------------------------------------------------------------------------
     int CLI::run_watch_folder_cmd(std::string& err)
     {
         long user_id = -1;
@@ -330,51 +435,93 @@ namespace MediaConch
     {
         if (f == "Text" || f == "text")
             return set_format(MediaConchLib::format_Text);
-        if (f == "XML" || f == "xml")
+        else if (f == "XML" || f == "xml")
             return set_format(MediaConchLib::format_Xml);
-        if (f == "MAXML" || f == "maxml")
+        else if (f == "MAXML" || f == "maxml")
             return set_format(MediaConchLib::format_MaXml);
-        if (f == "JSTREE" || f == "jstree")
+        else if (f == "JSTREE" || f == "jstree")
             return set_format(MediaConchLib::format_JsTree);
-        if (f == "HTML" || f == "html")
+        else if (f == "HTML" || f == "html")
             return set_format(MediaConchLib::format_Html);
+        else if (f == "SIMPLE" || f == "simple")
+            return set_format(MediaConchLib::format_Simple);
+        else if (f == "CSV" || f == "csv")
+            return set_format(MediaConchLib::format_CSV);
 
         return -1;
     }
 
     //--------------------------------------------------------------------------
-    int CLI::add_policy(const std::string& filename)
+    int CLI::add_policy(const std::string& pattern)
     {
-        ZenLib::Ztring z_filename = ZenLib::Ztring().From_UTF8(filename);
-        if (!ZenLib::File::Exists(z_filename))
-            return -1;
+        std::vector<std::string> filenames;
+#ifdef HAVE_GLOB
+        // Policy filenames pattern matching
+        glob_t gl;
+        if (glob(pattern.c_str(), GLOB_TILDE, NULL, &gl) == 0)
+        {
+            for (size_t j = 0; j < gl.gl_pathc; ++j)
+                filenames.push_back(gl.gl_pathv[j]);
+            globfree(&gl);
+        }
+        else
+            filenames.push_back(pattern);
+#else
+        filenames.push_back(pattern);
+#endif
 
-        ZenLib::File file(z_filename);
+        for (size_t i = 0; i < filenames.size() ; ++i)
+        {
+            std::string& filename = filenames[i];
+            ZenLib::Ztring z_filename = ZenLib::Ztring().From_UTF8(filename);
+            if (!ZenLib::File::Exists(z_filename))
+                return -1;
 
-        ZenLib::int64u size = file.Size_Get();
-        if (size == (ZenLib::int64u)-1)
-            return -1;
+            ZenLib::File file(z_filename);
 
-        ZenLib::int8u* Buffer = new ZenLib::int8u[size + 1];
+            ZenLib::int64u size = file.Size_Get();
+            if (size == (ZenLib::int64u)-1)
+                return -1;
 
-        size_t len = file.Read(Buffer, size);
-        Buffer[len] = '\0';
+            ZenLib::int8u* Buffer = new ZenLib::int8u[size + 1];
 
-        ZenLib::Ztring FromFile;
-        FromFile.From_UTF8((char*)Buffer);
-        if (FromFile.empty())
-            FromFile.From_Local((char*)Buffer);
+            size_t len = file.Read(Buffer, size);
+            Buffer[len] = '\0';
 
-        file.Close();
-        policies.push_back(FromFile.To_UTF8());
-        delete [] Buffer;
+            ZenLib::Ztring FromFile;
+            FromFile.From_UTF8((char*)Buffer);
+            if (FromFile.empty())
+                FromFile.From_Local((char*)Buffer);
+
+            file.Close();
+            policies.push_back(FromFile.To_UTF8());
+            delete [] Buffer;
+        }
         return 0;
     }
 
     //--------------------------------------------------------------------------
     void CLI::set_display_file(const std::string& file)
     {
-        display_file = file;
+        std::ifstream file_handler(file.c_str(), std::ios_base::ate);
+        if (!file_handler.is_open())
+        {
+            display_content = std::string();
+            return;
+        }
+
+        int size = file_handler.tellg();
+        if (size < 0)
+        {
+            display_content = std::string();
+            return;
+        }
+
+        file_handler.seekg(0, file_handler.beg);
+        display_content.reserve(size);
+        display_content.assign(std::istreambuf_iterator<char>(file_handler),
+                               std::istreambuf_iterator<char>());
+        file_handler.close();
     }
 
     //--------------------------------------------------------------------------
@@ -501,6 +648,13 @@ namespace MediaConch
     }
 
     //--------------------------------------------------------------------------
+    void CLI::set_list_mode()
+    {
+        list_mode = true;
+        no_needs_files_mode = true;
+    }
+
+    //--------------------------------------------------------------------------
     int CLI::register_option(const std::string& key, std::string& value)
     {
         std::string report;
@@ -520,14 +674,12 @@ namespace MediaConch
     }
 
     //--------------------------------------------------------------------------
-    int CLI::is_ready(long& file_id, MediaConchLib::report& report_kind, std::string& err)
+    int CLI::is_ready(long file_id, std::vector<long>& file_ids, MediaConchLib::report& report_kind, std::string& err)
     {
         MediaConchLib::Checker_StatusRes res;
         int ret = MCL.checker_status(use_as_user, file_id, res, err);
         if (ret < 0)
             return -1;
-
-        report_kind = MediaConchLib::report_MediaConch;
 
         if (use_daemon && asynchronous)
         {
@@ -544,21 +696,21 @@ namespace MediaConch
                 return 1;
             }
 
-            if (res.tool)
+            if (res.tool && report_kind == MediaConchLib::report_Max)
                 report_kind = (MediaConchLib::report)*res.tool;
 
+            file_ids.push_back(file_id);
             return ret;
         }
         else
         {
             while (!res.finished)
             {
-
-                #ifdef WINDOWS
+#ifdef WINDOWS
                 ::Sleep((DWORD)5);
-                #else
+#else
                 usleep(500000);
-                #endif
+#endif
                 if (MCL.checker_status(use_as_user, file_id, res, err) < 0)
                     return -1;
             }
@@ -576,13 +728,19 @@ namespace MediaConch
                 return -1;
             }
 
-            if (res.tool)
+            file_ids.push_back(file_id);
+
+            if (res.tool && report_kind == MediaConchLib::report_Max)
                 report_kind = (MediaConchLib::report)*res.tool;
 
-            if (res.generated_id >= 0)
+            for (size_t i = 0; i < res.generated_id.size(); ++i)
             {
-                file_id = res.generated_id;
-                return is_ready(file_id, report_kind, err);
+                if (res.generated_id[i] == -1)
+                    continue;
+
+                file_id = res.generated_id[i];
+                if ((ret = is_ready(file_id, file_ids, report_kind, err)) <= 0)
+                    return ret;
             }
         }
 
@@ -640,8 +798,9 @@ namespace MediaConch
 
     int CLI::run_policy_reference_file(long id, std::string& err)
     {
-        MediaConchLib::report report_kind;
-        return is_ready(id, report_kind, err);
+        MediaConchLib::report report_kind = MediaConchLib::report_Max;
+        std::vector<long> file_ids;
+        return is_ready(id, file_ids, report_kind, err);
     }
 
     void CLI::file_info_report(const MediaConchLib::Checker_FileInfo* info, std::string& report)
@@ -655,11 +814,21 @@ namespace MediaConch
         if (info->has_error)
             ss << "error_log:          " << std::boolalpha << info->error_log << "\n";
 
-        if (info->generated_id >= 0)
+        if (info->generated_id.size())
         {
-            std::string file;
-            MCL.checker_file_from_id(use_as_user, info->generated_id, file, error);
-            ss << "generated file:         " << file << "\n";
+            ss << "generated file:         [";
+            for (size_t i = 0; i < info->generated_id.size(); ++i)
+            {
+                if (i)
+                    ss << ",";
+
+                std::string file;
+                if (MCL.checker_file_from_id(use_as_user, info->generated_id[i], file, error) >= 0)
+                    ss << file;
+                else
+                    ss << i;
+            }
+            ss << "]\n";
         }
 
         if (info->source_id >= 0)

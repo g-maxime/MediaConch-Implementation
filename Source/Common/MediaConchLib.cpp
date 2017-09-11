@@ -15,6 +15,7 @@
 #include <ZenLib/ZtringList.h>
 #include "MediaConchLib.h"
 #include "Core.h"
+#include "Reports.h"
 #include "DaemonClient.h"
 #include "Policy.h"
 #include "Http.h"
@@ -24,6 +25,7 @@
 #include "generated/PolicySample5.h"
 #include "generated/PolicySample6.h"
 #include "generated/PolicySample7.h"
+#include "generated/PolicySample8.h"
 
 namespace MediaConch {
 
@@ -37,6 +39,8 @@ const std::string MediaConchLib::display_maxml_name = std::string("MAXML");
 const std::string MediaConchLib::display_text_name = std::string("TEXT");
 const std::string MediaConchLib::display_html_name = std::string("HTML");
 const std::string MediaConchLib::display_jstree_name = std::string("JSTREE");
+const std::string MediaConchLib::display_simple_name = std::string("SIMPLE");
+const std::string MediaConchLib::display_csv_name = std::string("CSV");
 
 //***************************************************************************
 // Constructor/Destructor
@@ -130,6 +134,19 @@ int MediaConchLib::test_mil_option(const std::string& key, std::string& value, s
 }
 
 //---------------------------------------------------------------------------
+bool MediaConchLib::mil_has_curl_enabled()
+{
+    String Result = core->Menu_Option_Preferences_Option(__T("info_canhandleurls"), __T(""));
+    if (Result.empty())
+        return false;
+
+    if (Result == __T("1"))
+        return true;
+
+    return false;
+}
+
+//---------------------------------------------------------------------------
 bool MediaConchLib::ReportAndFormatCombination_IsValid(const std::vector<std::string>&,
                                                        const std::bitset<MediaConchLib::report_Max>& reports,
                                                        const std::string& display, MediaConchLib::format& Format,
@@ -141,13 +158,21 @@ bool MediaConchLib::ReportAndFormatCombination_IsValid(const std::vector<std::st
         return false;
     }
 
-    // Forcing some formats
-    if (Format == MediaConchLib::format_Text && !display.empty())
-        Format = format_Xml; //Forcing Text (default) to XML
-
-    if (Format != MediaConchLib::format_Xml && !display.empty())
+    if (Format != MediaConchLib::format_Max && !display.empty())
     {
-        reason = "If a display is used, no other output format can be used";
+        reason = "If a display is used, no other output format can be used.";
+        return false;
+    }
+
+    if (reports[MediaConchLib::report_MediaInfo] && (Format == MediaConchLib::format_Simple))
+    {
+        reason = "Simple output is not currently supported for MediaInfo reports.";
+        return false;
+    }
+
+    if (reports[MediaConchLib::report_MediaInfo] && (Format == MediaConchLib::format_Html))
+    {
+        reason = "HTML output is not currently supported for MediaInfo reports.";
         return false;
     }
 
@@ -347,27 +372,17 @@ int MediaConchLib::checker_file_information(int user, long id, MediaConchLib::Ch
 //***************************************************************************
 
 //---------------------------------------------------------------------------
-int MediaConchLib::checker_get_report(int user, const std::bitset<report_Max>& report_set, format f,
-                                      const std::vector<long>& files,
-                                      const std::vector<size_t>& policies_ids,
-                                      const std::vector<std::string>& policies_contents,
-                                      const std::map<std::string, std::string>& options,
-                                      Checker_ReportRes* result, std::string& error,
-                                      const std::string* display_name,
-                                      const std::string* display_content)
+int MediaConchLib::checker_get_report(CheckerReport& c_report, Checker_ReportRes* result, std::string& error)
 {
-    if (!files.size())
-        return errorHttp_INVALID_DATA;
+    if (!c_report.files.size())
+    {
+        error = "No file given for report.";
+        return -1;
+    }
 
     if (use_daemon)
-        return daemon_client->checker_get_report(user, report_set, f, files,
-                                                 policies_ids, policies_contents,
-                                                 options, result, error,
-                                                 display_name, display_content);
-    return core->checker_get_report(user, report_set, f, files,
-                                    policies_ids, policies_contents,
-                                    options, result, error,
-                                    display_name, display_content);
+        return daemon_client->checker_get_report(c_report, result, error);
+    return core->reports.checker_get_report(c_report, result, error);
 }
 
 //---------------------------------------------------------------------------
@@ -390,19 +405,28 @@ int MediaConchLib::checker_validate(int user, report report, const std::vector<l
                                                options,
                                                result, error);
 
-    return core->checker_validate(user, report, files,
-                                  policies_ids, policies_contents,
-                                  options,
-                                  result, error);
+    return core->reports.checker_validate(user, report, files,
+                                          policies_ids, policies_contents,
+                                          options,
+                                          result, error);
 }
 
 //---------------------------------------------------------------------------
-int MediaConchLib::remove_report(int user, const std::vector<long>& files, std::string& error)
+int MediaConchLib::checker_clear(int user, const std::vector<long>& files, std::string& error)
 {
-    if (!files.size())
-        return errorHttp_INVALID_DATA;
+    if (use_daemon)
+        return daemon_client->checker_clear(user, files, error);
 
-    return core->remove_report(user, files, error);
+    return core->checker_clear(user, files, error);
+}
+
+//---------------------------------------------------------------------------
+int MediaConchLib::checker_stop(int user, const std::vector<long>& files, std::string& error)
+{
+    if (use_daemon)
+        return daemon_client->checker_stop(user, files, error);
+
+    return core->checker_stop(user, files, error);
 }
 
 //***************************************************************************
@@ -718,24 +742,6 @@ const std::string& MediaConchLib::get_implementation_verbosity()
 }
 
 //***************************************************************************
-// XSL Transformation
-//***************************************************************************
-
-//---------------------------------------------------------------------------
-int MediaConchLib::transform_with_xslt_file(const std::string& report, const std::string& file,
-                                            const std::map<std::string, std::string>& opts, std::string& result)
-{
-    return core->transform_with_xslt_file(report, file, opts, result);
-}
-
-//---------------------------------------------------------------------------
-int MediaConchLib::transform_with_xslt_memory(const std::string& report, const std::string& memory,
-                                              const std::map<std::string, std::string>& opts, std::string& result)
-{
-    return core->transform_with_xslt_memory(report, memory, opts, result);
-}
-
-//***************************************************************************
 // Configuration
 //***************************************************************************
 
@@ -743,6 +749,12 @@ int MediaConchLib::transform_with_xslt_memory(const std::string& report, const s
 void MediaConchLib::load_configuration()
 {
     core->load_configuration();
+}
+
+//---------------------------------------------------------------------------
+void MediaConchLib::set_default_scheduler_max_threads(size_t nb)
+{
+    core->set_default_scheduler_max_threads(nb);
 }
 
 //---------------------------------------------------------------------------
@@ -846,6 +858,10 @@ int MediaConchLib::load_system_policy()
     memory = std::string(policy_sample_7);
     core->policies.import_policy_from_memory(-1, memory, err, path.c_str(), true);
 
+    policy_path = path + "policy_sample_8.xml";
+    memory = std::string(policy_sample_8);
+    core->policies.import_policy_from_memory(-1, memory, err, path.c_str(), true);
+
     return 0;
 }
 
@@ -884,6 +900,12 @@ int MediaConchLib::load_existing_policy()
     }
 
     return 0;
+}
+
+//---------------------------------------------------------------------------
+void MediaConchLib::register_log_callback(void (*log)(struct MediaInfo_Event_Log_0* Event))
+{
+    core->ecb.log = log;
 }
 
 }
