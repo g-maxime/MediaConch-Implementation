@@ -74,7 +74,6 @@ MainWindow::MainWindow(QWidget *parent) :
     MCL.init(err);
 
     // GUI database
-    db = NULL;
     create_and_configure_ui_database();
     workerfiles.set_database(db);
     uisettings.set_database(db);
