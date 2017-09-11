@@ -7,9 +7,14 @@
 #ifndef WEBENGINEPAGE_H
 #define WEBENGINEPAGE_H
 
-#include <QMap>
 #include "mainwindow.h"
 #include "WebCommonPage.h"
+#include <QWebEnginePage>
+#include <QWebChannel>
+#include <QMap>
+#include <QJsonValue>
+#include <QJsonArray>
+#include <QJsonObject>
 
 namespace MediaConch {
 

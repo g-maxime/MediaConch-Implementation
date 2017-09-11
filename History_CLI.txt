@@ -7,6 +7,65 @@ x Correction
 bug reports and feature request are here :
 https://github.com/MediaArea/MediaConch_SourceCode
 
+Version 17.07, 2017-08-08
+--------------
+Add EBML-MINVER-COHERANT and EBML-MAXVER-COHERANT tests
+MediaConch is now directly integrated in Fedora repository
+CLI was sometimes not responding with -f option
+
+Version 17.06, 2017-06-30
+--------------
+Ubuntu 17.04 packages
+More Matroska checks
+More detailed FFV1 errors
+See https://github.com/MediaArea/groundtruth/blob/master/matroska/README.md for more information
+
+Version 17.05, 2017-06-01
+--------------
+add a --list command to the CLI for listing files in the database
+add FFV1-VALID-VERSION, EBML-ELEMENT-VALID-RANGE, NO-JUNK-IN-FIXEDSIZE-MATROSKA, EBML-ELEM-UNKNOWN-SIZE tests
+deprecate MKV-VALID-BOOLEANS test
+fixes to MKV-NUMERICAL-TAG test
+
+Version 17.04, 2017-05-04
+--------------
+Better support of some broken Matroska files (high EBMLMaxSizeLength, padding before start of EBML)
+Was sometimes displaying "Bit depth: Bit0" when bit depth is unknown in Matroska
+FFV1 PixelAspectRatio was an integer, switched to 3-digit rational
+Several small bug fixes and small performance optimizations
+
+Version 17.03, 2017-03-31
+--------------
+Analyze attachments in Matroska files
+Reduce size of Matroska trace
+Few small FFV1 parsing improvements
+Several small bug fixes
+
+Version 17.02, 2017-02-28
+--------------
+New policy example (TN2162)
+Fix incorrect namespaces in schemaLocation (Thanks to kimec)
+Report refactoring
+Several minor FFV1 related bug fixed
+Support of V_FFV1 codec identifier in Matroska
+
+Version 17.01.1, 2017-02-02
+--------------
+Fix a performance regression in the matroska parser
+
+Version 17.01, 2017-01-31
+-------------
+Less verbose output by default (use " -ft" for old behavior)
+New display templates "Simple" and "CSV"
+Support of newest version of DPFManager (TIFF plugin) and VeraPDF (PDF plugin)
+Store implementation report in database (no need to run it again at relaunch)
+Several small bug fixes
+
+Version 16.12, 2016-12-31
+-------------
+Better handling of errors
+Fixes
+
 Version 16.11, 2016-11-30
 -------------
 MediaTrace optimization for Matroska
@@ -126,7 +185,7 @@ Version 15.08, 2015-08-31
 -------------
 Improved FFV1 slice analysis
 Trace feature: XML malformed with Flags items (hotfix, flags meaning disabled in XML output)
-Trace feature: XML malformed with some MP4 files
+
 Trace feature: XML duplicated attributes
 Trace feature: versioned xsd, creating library name and version
 

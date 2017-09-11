@@ -33,6 +33,8 @@ namespace MediaConch
             Q_EMIT mainwindow->on_actionPublicPolicies_triggered();
         else if (!menu_name.compare("Display"))
             Q_EMIT mainwindow->on_actionDisplay_triggered();
+        else if (!menu_name.compare("Database"))
+            Q_EMIT mainwindow->on_actionDatabase_triggered();
         else if (!menu_name.compare("Settings"))
             Q_EMIT mainwindow->on_actionSettings_triggered();
         else if (!menu_name.compare("Help"))
@@ -101,7 +103,10 @@ namespace MediaConch
 
         std::string err;
         mainwindow->get_implementation_report(file_id, report, err, &display_i, verbosity_p);
-        return report;
+
+        string_to_json(report);
+        QString ret = QString("{\"report\":\"%1\",\"isHtmlReport\":%2}").arg(report).arg(report_is_html(report) ? "true" : "false");
+        return ret;
     }
 
     void WebCommonPage::on_save_implementation_report(long file_id, const QString& display, const QString& verbosity)
@@ -131,7 +136,10 @@ namespace MediaConch
             std::string err;
             mainwindow->validate_policy(file_id, report, err, policy_i, &display_i);
         }
-        return report;
+
+        string_to_json(report);
+        QString ret = QString("{\"report\":\"%1\",\"isHtmlReport\":%2}").arg(report).arg(report_is_html(report) ? "true" : "false");
+        return ret;
     }
 
     void WebCommonPage::on_save_policy_report(long file_id, const QString& policy, const QString& display)
@@ -178,81 +186,252 @@ namespace MediaConch
         QString err;
 
         int id = mainwindow->xslt_policy_create_from_file(file_id, err);
-        if (mainwindow->policy_get_name(id, n, err) < 0)
+        if (id < 0 || mainwindow->policy_get_name(id, n, err) < 0)
             n = std::string();
-        QString name = QString().fromUtf8(n.c_str(), n.length());
+        else
+            mainwindow->policy_save(id, err);
 
-        QString script = QString("{\"policyId\":%1, \"policyName\":\"%2\"}")
-                             .arg(id)
-                             .arg(name);
+        QString name = QString().fromUtf8(n.c_str(), n.length());
+        string_to_json(name);
+
+        QString script;
+        if (n.size())
+            script = QString("{\"result\":true,\"policyId\":%1, \"policyName\":\"%2\"}")
+                         .arg(id)
+                         .arg(name);
+        else
+            script = QString("{}");
         return script;
     }
 
-    QString WebCommonPage::on_file_upload_selected(const QString& policy, const QString& display,
-                                                const QString& verbosity, bool fixer)
+    QString WebCommonPage::checker_force_analyze(long id)
     {
-        int ret = 0;
+        std::string err;
+
+        if (mainwindow->analyze_force_file_to_list(id, err) < 0)
+        {
+            QString err_str = QString().fromUtf8(err.c_str(), err.size());
+            string_to_json(err_str);
+            return QString("{\"error\": \"%1\"}").arg(err_str);
+        }
+
+        return QString("{}");
+    }
+
+    void WebCommonPage::on_file_selected(const QString& filename, const QString& path,
+                                         const QString& policy, const QString& display,
+                                         const QString& verbosity, bool fixer, const QStringList& options,
+                                         QString& ret, std::string& err_str)
+    {
+        std::string error;
+        std::string full_file(path.toUtf8().data());
+        if (mainwindow->add_file_to_list(filename, path, policy,
+                                         display, verbosity, fixer, false, options, error) < 0)
+        {
+            if (err_str.size())
+                err_str += "\n";
+            err_str += error;
+        }
+        else
+        {
+#ifdef WINDOWS
+            if (full_file.size() && full_file[full_file.size() - 1] != '/' && full_file[full_file.size() - 1] != '\\')
+                full_file += "/";
+#else
+            if (full_file.length())
+                full_file += "/";
+#endif
+            full_file += filename.toUtf8().data();
+
+            FileRegistered* fr = mainwindow->get_file_registered_from_file(full_file);
+            if (!fr)
+            {
+                err_str += "File not correctly registered.";
+                return;
+            }
+
+            if (ret.size())
+                ret += ",";
+
+            QString filename = QString().fromUtf8(full_file.c_str(), full_file.size());
+            string_to_json(filename);
+            ret += QString("{\"success\":true, \"filename\":\"%1\", \"transactionId\":%2}")
+                .arg(filename)
+                .arg(fr->file_id);
+        }
+    }
+
+    void WebCommonPage::on_file_selected_end(const std::string& err_str, QString& ret)
+    {
+        QString val("{\"success\":[");
+        val += ret;
+        val += "]";
+
+        ret = val;
+
+        QString err;
+        if (err_str.size())
+            err = QString("\"error\":\"%1\"").arg(QString().fromUtf8(err_str.c_str(), err_str.size()));
+
+        if (err.size())
+        {
+            if (ret.size() > 1)
+                ret += ",";
+            ret += err;
+        }
+
+        file_selector.clear();
+        clean_forms();
+        ret += "}";
+    }
+
+    void WebCommonPage::on_file_selected_formValues(const FileRegistered* fr, QString& formValues)
+    {
+        formValues = "{";
+
+        //Policy
+        formValues += QString("\"policy\":%1,").arg(fr->policy);
+        if (fr->policy == -1)
+            formValues += "\"policyText\":\"N/A\"";
+        else
+        {
+            QString err;
+            std::string n;
+            if (mainwindow->policy_get_name(fr->policy, n, err) < 0)
+                n = "N/A";
+
+            QString name = QString().fromUtf8(n.c_str(), n.length());
+            string_to_json(name);
+
+            formValues += QString("\"policyText\":\"%1\"").arg(name);
+        }
+
+        //display
+        formValues += QString(",\"display\":%1").arg(fr->display);
+
+        //verbosity
+        formValues += QString(",\"verbosity\":%1").arg(fr->verbosity);
+
+        formValues += "}";
+    }
+
+    QString WebCommonPage::on_file_upload_selected(const QString& policy, const QString& display,
+                                                   const QString& verbosity, bool fixer, const QStringList& options)
+    {
         QStringList files = file_selector.value("checkerUpload_file", QStringList());
 
         if (!files.size())
-            return QString();
+            return QString("{\"error\": \"No folder selected.\"}");
 
+        std::string err_str;
+        QString ret;
         for (int i = 0; i < files.size(); ++i)
         {
             QFileInfo f = QFileInfo(files[i]);
-            std::string error;
-            if (mainwindow->add_file_to_list(f.fileName(), f.absolutePath(), policy,
-                                             display, verbosity, fixer, error) < 0)
-                return QString("%1\n").arg(QString().fromUtf8(error.c_str(), error.size()));
+            on_file_selected(f.fileName(), f.absolutePath(), policy,
+                             display, verbosity, fixer, options, ret, err_str);
         }
-        file_selector.clear();
-        clean_forms();
-        use_javascript(QString("startWaitingLoop()"));
+        on_file_selected_end(err_str, ret);
 
-        return QString();
+        return ret;
     }
 
     QString WebCommonPage::on_file_online_selected(const QString& url, const QString& policy,
                                                    const QString& display, const QString& verbosity,
-                                                   bool fixer)
+                                                   bool, const QStringList& options)
     {
-        QString ret;
         if (!url.length())
-            return ret;
+            return QString("{\"error\": \"No URL given.\"}");
 
-        std::string error;
-        if (mainwindow->add_file_to_list(url, "", policy, display, verbosity, fixer, error) < 0)
-            ret += QString("%1\n").arg(QString().fromUtf8(error.c_str(), error.size()));
-        file_selector.clear();
-        clean_forms();
-        use_javascript(QString("startWaitingLoop()"));
-        return ret;    }
+        std::string err_str;
+        QString ret;
+        on_file_selected(url, "", policy, display, verbosity, false, options, ret, err_str);
+        on_file_selected_end(err_str, ret);
+
+        return ret;
+    }
 
     QString WebCommonPage::on_file_repository_selected(const QString& policy, const QString& display,
-                                                    const QString& verbosity, bool fixer)
+                                                       const QString& verbosity, bool fixer,
+                                                       const QStringList& options)
     {
-        QString ret;
         QStringList dirname = file_selector.value("checkerRepository_directory", QStringList());
         if (dirname.empty())
-            return ret;
+            return QString("{\"error\": \"No folder selected.\"}");
 
         QDir dir(dirname.last());
         QFileInfoList list;
         add_sub_directory_files_to_list(dir, list);
         if (!list.count())
+            return QString("{\"error\": \"Folder selected is empty.\"}");
+
+        std::string err_str;
+        QString ret;
+        for (int i = 0; i < list.size(); ++i)
+            on_file_selected(list[i].fileName(), list[i].absolutePath(), policy, display, verbosity, fixer, options, ret, err_str);
+        on_file_selected_end(err_str, ret);
+
+        return ret;
+    }
+
+    QString WebCommonPage::on_file_from_db_selected()
+    {
+        QString ret;
+        std::string err_str;
+        std::map<std::string, FileRegistered*> files;
+        mainwindow->get_registered_files(files);
+
+        if (!files.size())
             return ret;
 
-        for (int i = 0; i < list.size(); ++i)
-        {
-            std::string error;
-            if (mainwindow->add_file_to_list(list[i].fileName(), list[i].absolutePath(), policy,
-                                             display, verbosity, fixer, error))
-                ret += QString("%1\n").arg(QString().fromUtf8(error.c_str(), error.size()));
-        }
-        file_selector.clear();
-        clean_forms();
-        use_javascript(QString("startWaitingLoop()"));
+        std::map<std::string, FileRegistered*>::iterator it = files.begin();
 
+        for (; it != files.end(); ++it)
+        {
+            if (!it->second)
+                continue;
+
+            if (ret.size())
+                ret += ",";
+
+            QString filename = QString().fromUtf8(it->first.c_str(), it->first.size());
+            string_to_json(filename);
+
+            QString formValues;
+            on_file_selected_formValues(it->second, formValues);
+            ret += QString("{\"success\":true, \"filename\":\"%1\", \"transactionId\":%2, \"formValues\":%3}")
+                .arg(filename)
+                .arg(it->second->file_id)
+                .arg(formValues);
+        }
+
+        on_file_selected_end(err_str, ret);
+        return ret;
+    }
+
+    QString WebCommonPage::status_reports_multi(const QStringList& ids, const QStringList& policy_ids)
+    {
+        QString ret("[");
+        for (int i = 0; i < ids.size(); ++i)
+        {
+            if (ret.size() > 1)
+                ret += ",{";
+            else
+                ret += "{";
+            long file_id = ids[i].toInt();
+            ret += "\"implemReport\":" + implementation_is_valid(file_id);
+
+            if (policy_ids[i] == "-1")
+            {
+                ret += "}";
+                continue;
+            }
+
+            ret += ",\"policyReport\":" + policy_is_valid(file_id, policy_ids[i].toInt());
+
+            ret += "}";
+        }
+        ret += "]";
         return ret;
     }
 
@@ -403,27 +582,13 @@ namespace MediaConch
     {
         file_selector.clear();
 
-        int policy_i = mainwindow->select_correct_policy();
-        int display_i = mainwindow->select_correct_display();
-        int verbosity_i = mainwindow->select_correct_verbosity();
+        bool has_libcurl = mainwindow->mil_has_curl_enabled();
 
-        use_javascript(QString("document.getElementById('checkerUpload_policy').value = %1;").arg(policy_i));
-        use_javascript(QString("document.getElementById('checkerUpload_display_selector').value = %1;").arg(display_i));
-        use_javascript(QString("document.getElementById('checkerUpload_verbosity_selector').value = %1;").arg(verbosity_i));
         use_javascript("document.getElementById('checkerUpload_file').value = \"\";");
 
-#if defined(MEDIAINFO_LIBCURL_YES)
+        if (has_libcurl)
+            use_javascript("document.getElementById('checkerOnline_file').value = \"\";");
 
-        use_javascript(QString("document.getElementById('checkerOnline_policy').value = %1;").arg(policy_i));
-        use_javascript(QString("document.getElementById('checkerOnline_display_selector').value = %1;").arg(display_i));
-        use_javascript(QString("document.getElementById('checkerOnline_verbosity_selector').value = %1;").arg(verbosity_i));
-        use_javascript("document.getElementById('checkerOnline_file').value = \"\";");
-
-#endif
-
-        use_javascript(QString("document.getElementById('checkerRepository_policy').value = %1;").arg(policy_i));
-        use_javascript(QString("document.getElementById('checkerRepository_display_selector').value = %1;").arg(display_i));
-        use_javascript(QString("document.getElementById('checkerRepository_verbosity_selector').value = %1;").arg(verbosity_i));
         use_javascript("document.getElementById('checkerRepository_directory').value = \"\";");
     }
 
@@ -432,9 +597,9 @@ namespace MediaConch
         mainwindow->clear_file_list();
     }
 
-    void WebCommonPage::close_element(const QString& file)
+    void WebCommonPage::close_element(long file_id)
     {
-        mainwindow->remove_file_to_list(file);
+        mainwindow->remove_file_to_list(file_id);
     }
 
     QString WebCommonPage::choose_file_settings()
@@ -481,7 +646,7 @@ namespace MediaConch
             return QString();
 
         QString suggested = QString().fromUtf8(suggested_str.c_str(), suggested_str.length());
-        QString value_input = QFileDialog::getOpenFileName(mainwindow, "Open file", suggested, "XML file (*.xml);;XSL file (*.xsl);;All (*.*)", 0, QFileDialog::DontUseNativeDialog);
+        QString value_input = QFileDialog::getOpenFileName(mainwindow, "Open file", suggested, "XML file (*.xml);;XSL file (*.xsl);;All (*.*)", 0, QFileDialog::Option(0));
 
         QMap<QString, QStringList>::iterator it = file_selector.find(select_file_name);
         if (it != file_selector.end())
@@ -491,6 +656,27 @@ namespace MediaConch
             return QString();
 
         mainwindow->set_last_load_policy_path(value_input.toUtf8().data());
+        file_selector.insert(select_file_name, QStringList(value_input));
+
+        return value_input;
+    }
+
+    QString WebCommonPage::choose_file_policy_from_file()
+    {
+        std::string suggested_str;
+
+        suggested_str = mainwindow->select_correct_load_files_path();
+
+        QString suggested = QString().fromUtf8(suggested_str.c_str(), suggested_str.length());
+        QString value_input = QFileDialog::getOpenFileName(mainwindow, "Open file", suggested);
+
+        QMap<QString, QStringList>::iterator it = file_selector.find(select_file_name);
+        if (it != file_selector.end())
+            file_selector.erase(it);
+
+        if (!value_input.length())
+            return QString();
+
         file_selector.insert(select_file_name, QStringList(value_input));
 
         return value_input;
@@ -518,6 +704,9 @@ namespace MediaConch
         for (int i = 0; i < files.size(); ++i)
             charge_local_dir(files[i], tmp);
 
+        if (!tmp.size())
+            return;
+
         QMap<QString, QStringList>::iterator it = file_selector.find("checkerUpload_file");
         if (it != file_selector.end())
             file_selector["checkerUpload_file"] << tmp;
@@ -530,12 +719,29 @@ namespace MediaConch
             mainwindow->set_last_load_files_path(info.absolutePath().toUtf8().data());
         }
 
-        QString err = on_file_upload_selected(QString().setNum(mainwindow->select_correct_policy()),
+        QStringList options;
+        if (checker_full_parse)
+        {
+            options << "file_parsespeed";
+            options << "1";
+        }
+        QString res = on_file_upload_selected(QString().setNum(mainwindow->select_correct_policy()),
                                               QString().setNum(mainwindow->select_correct_display()),
                                               QString().setNum(mainwindow->select_correct_verbosity()),
-                                              false);
-        if (err.size())
-            mainwindow->set_str_msg_to_status_bar(err.toUtf8().data());
+                                              false, options);
+
+        FileRegistered* fr = mainwindow->get_file_registered_from_file(tmp[0].toUtf8().data());
+        if (!fr)
+            return;
+
+        QString formValues;
+        on_file_selected_formValues(fr, formValues);
+
+        string_to_json(res);
+        QString script = QString("checkerAjax.formRequestResponse(\"%1\", %2);").arg(res).arg(formValues);
+        if (script.length())
+            use_javascript(script);
+
     }
 
     //---------------------------------------------------------------------------
@@ -604,46 +810,27 @@ namespace MediaConch
         return QString().setNum(verbosity);
     }
 
-    QString WebCommonPage::policy_is_valid(long file_id)
+    QString WebCommonPage::policy_is_valid(long file_id, long policy_id)
     {
         //{"valid":false,"fileId":"fileId","error":null}
         std::string err;
         QString json = QString("{\"fileId\":\"%1\",").arg(file_id);
-        FileRegistered* fr = mainwindow->get_file_registered_from_id(file_id);
-        if (!fr)
-        {
-            json += QString("\"valid\":%1,\"error\":\"%2\"}")
-                .arg("false").arg("File not reachable");
-            return json;
-        }
-
-        if (!fr->analyzed)
-        {
-            json += QString("\"valid\":%1,\"error\":\"%2\"}")
-                .arg("false").arg("File not analyzed");
-            delete fr;
-            return json;
-        }
-
         bool policy_valid = false;
-        std::vector<MediaConchLib::Checker_ValidateRes*> res;
-        if (mainwindow->validate_policy(file_id, fr->policy, res, err) < 0)
+        if (mainwindow->update_policy_of_file_in_list(file_id, policy_id, err) < 0)
         {
             json += QString("\"valid\":false,\"error\":\"%2\"}")
                 .arg(QString().fromUtf8(err.c_str(), err.size()));
-            delete fr;
-            return json;
         }
 
-        if (res.size() == 1)
-            policy_valid = res[0]->valid;
-
-        for (size_t j = 0; j < res.size() ; ++j)
-            delete res[j];
-        res.clear();
+        FileRegistered* fr = mainwindow->get_file_registered_from_id(file_id);
+        if (!fr)
+        {
+            json += QString("\"valid\":false,\"error\":\"%2\"}")
+                .arg(QString().fromUtf8("File has been removed."));
+        }
 
         json += QString("\"valid\":%1,\"error\":%2}")
-            .arg(policy_valid ? "true" : "false").arg("null");
+            .arg(fr->policy_valid ? "true" : "false").arg("null");
 
         delete fr;
         return json;
@@ -676,17 +863,6 @@ namespace MediaConch
         return json;
     }
 
-    QString WebCommonPage::implementation_and_policy_is_valid(long file_id)
-    {
-        //{"implemReport":{"valid":true,"fileId":"fileId","error":null},"statusReport":{"valid":false,"fileId":"fileId","error":null}}
-        QString json = QString("{\"implemReport\":");
-        json += implementation_is_valid(file_id);
-        json += ",\"statusReport\":";
-        json += policy_is_valid(file_id);
-        json += "}";
-        return json;
-    }
-
     QString WebCommonPage::file_is_analyzed(const QStringList& ids)
     {
         QString json = QString("{\"status\":{");
@@ -702,12 +878,53 @@ namespace MediaConch
             if ((report_kind >= 0 && report_kind <= 2) || report_kind == 5) //MC/MI/MT/MMT
                 report_kind = 2;
 
-            QString analyzed = QString("\"%1\": {\"finish\":%2,\"tool\":%3,\"percent\":%4}")
-                .arg(fr->file_id)                     // id
-                .arg(fr->analyzed ? "true" : "false") // finish
-                .arg(report_kind)                     // tool
-                .arg(fr->analyze_percent);            // percent
+            QString analyzed = QString("\"%1\":{\"finish\":%2,")
+                .arg(fr->file_id)                      // id
+                .arg(fr->analyzed ? "true" : "false"); // finish
+
+            if (fr->analyzed)
+            {
+                analyzed += QString("\"tool\":%1")
+                    .arg(report_kind);                 // tool
+            }
+            else
+            {
+                analyzed += QString("\"percent\":%1")
+                    .arg(fr->analyze_percent);         // percent
+            }
+
+            if (fr->generated_id.size())
+            {
+                analyzed += QString(",\"associatedFiles\":{"); // associated files
+
+                for (size_t x = 0; x < fr->generated_id.size(); ++x)
+                {
+                    if (x)
+                        analyzed += ",";
+
+                    std::string filename, err;
+                    if (mainwindow->checker_file_from_id(fr->generated_id[x], filename, err) < 0)
+                    {
+                        mainwindow->set_str_msg_to_status_bar(err);
+                        filename = "";
+                    }
+
+                    QStringList opt;
+                    for (size_t k = 0; k < fr->options.size(); ++k)
+                        opt << QString().fromUtf8(fr->options[k].c_str(), fr->options[k].size());
+                    if (mainwindow->add_attachment_to_list(QString().fromUtf8(filename.c_str(), filename.size()),
+                                                           fr->policy, fr->display, fr->verbosity, opt,
+                                                           err) < 0)
+                        mainwindow->set_str_msg_to_status_bar(err);
+
+                    analyzed += QString("\"%1\":\"%2\"").arg(QString().number(fr->generated_id[x]))
+                        .arg(QString().fromUtf8(filename.c_str(), filename.size()));
+                }
+                analyzed += QString("}");
+            }
+
             delete fr;
+            analyzed += "}";
 
             if (one_added)
                 json += ",";
@@ -721,17 +938,12 @@ namespace MediaConch
         return json;
     }
 
-    void WebCommonPage::change_policy_for_file(long file_id, const QString& policy)
-    {
-        mainwindow->update_policy_of_file_in_list(file_id, policy);
-    }
-
     void WebCommonPage::add_sub_directory_files_to_list(const QDir dir, QFileInfoList& list)
     {
         QFileInfoList tmp = dir.entryInfoList(QDir::Files);
         list << tmp;
 
-        tmp = dir.entryInfoList(QDir::Dirs | QDir::NoDot | QDir::NoDotDot);
+        tmp = dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot);
         for (int i = 0; i < tmp.size(); ++i)
         {
             QDir tmp_dir(tmp[i].absoluteFilePath());
@@ -943,6 +1155,31 @@ namespace MediaConch
 
         json = QString().fromUtf8(p.jstree->c_str(), p.jstree->length());
         return json;
+    }
+
+    QString WebCommonPage::policy_from_file()
+    {
+        QString file;
+        QStringList list = file_selector["xslPolicyCreateFromFile[file]"];
+        if (list.size())
+            file = list.last().toUtf8().data();
+
+        if (!file.size())
+            return QString("{\"error\":\"No file selected\"}");
+
+        file_selector.clear();
+
+        std::string error;
+        QFileInfo f = QFileInfo(file);
+        QStringList options;
+        if (mainwindow->add_file_to_list(f.fileName(), f.absolutePath(),
+                                         QString().setNum(mainwindow->select_correct_policy()),
+                                         QString().setNum(mainwindow->select_correct_display()),
+                                         QString().setNum(mainwindow->select_correct_verbosity()), false, true,
+                                         options, error) < 0)
+            return QString("{\"error\":\"%1\"").arg(QString().fromUtf8(error.c_str(), error.size()));
+
+        return QString("{}");
     }
 
     QString WebCommonPage::policy_import_data(const QString& data)
@@ -1393,10 +1630,89 @@ namespace MediaConch
         return json;
     }
 
+    QString WebCommonPage::checker_list()
+    {
+        std::vector<long> files;
+        QString error;
+        mainwindow->checker_list(files, error);
+        QString ret("{\"files\":[");
+        for (size_t i = 0; i < files.size(); ++i)
+        {
+            MediaConchLib::Checker_FileInfo fi;
+            std::string err;
+            if (mainwindow->checker_file_information(files[i], fi, err) < 0)
+                error = QString().fromUtf8(err.c_str(), err.size());
+
+            if (i)
+                ret += ",";
+
+            QString file = QString().fromUtf8(fi.filename.c_str(), fi.filename.size());
+            string_to_json(file);
+            ret += QString("{\"name\":\"%1\",\"id\":%2}").arg(file).arg(files[i]);
+        }
+        ret += "]";
+
+        if (error.size())
+            ret += QString(",\"error\":\"%1\"").arg(error);
+        ret += "}";
+
+        return ret;
+    }
+
+    QString WebCommonPage::remove_file_from_db(long id)
+    {
+        QString ret("{");
+        QString error;
+        if (mainwindow->checker_clear(id, error) < 0)
+        {
+            string_to_json(error);
+            ret += QString("\"error\":\"%1\"").arg(error);
+        }
+
+        ret += "}";
+        return ret;
+    }
+
+    QString WebCommonPage::add_file_to_checker_again(long id)
+    {
+        QString json("{");
+        std::string err;
+        int ret = mainwindow->add_file_to_list(id, err);
+        if (ret < 0)
+        {
+            QString error = QString().fromUtf8(err.c_str(), err.size());
+            string_to_json(error);
+            json += QString("\"error\":\"%1\"").arg(error);
+        }
+        else if (ret > 0)
+            json += QString("\"success\":\"File already in the checker\"");
+        else
+            json += QString("\"success\":\"File added to the checker\"");
+
+        json += "}";
+        return json;
+    }
+
+    QString WebCommonPage::remove_all_files_from_db()
+    {
+        QString ret("{");
+        QString error;
+        if (mainwindow->checker_clear(error) < 0)
+        {
+            string_to_json(error);
+            ret += QString("\"error\":\"%1\"").arg(error);
+        }
+
+        ret += "}";
+        return ret;
+    }
+
     void WebCommonPage::string_to_json(QString& str)
     {
         str.replace("\"", "\\\"");
-        str.replace("\n", "\\\n");
+        str.replace("\n", "\\n");
+        str.replace("\r", "");
+        str.replace("\t", " ");
     }
 
     void WebCommonPage::call_tooltip(const QString& link)
@@ -1423,5 +1739,10 @@ namespace MediaConch
         UiSettings& settings = mainwindow->get_settings();
         settings.change_mco_token(token.toUtf8().data());
         return QString("{}");
+    }
+
+    void WebCommonPage::set_full_parse(bool fp)
+    {
+        checker_full_parse = fp;
     }
 }

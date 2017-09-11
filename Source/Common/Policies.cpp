@@ -237,7 +237,7 @@ int Policies::save_policy(int user, int id, std::string& err)
     if (policy->type == POLICY_XSLT && ((XsltPolicy*)policy)->parent_id != (size_t)-1)
         return save_policy(user, ((XsltPolicy*)policy)->parent_id, err);
 
-    return export_policy(user, NULL, id, err);
+    return export_policy(user, NULL, id, err, true);
 }
 
 int Policies::duplicate_policy(int user, int id, int dst_policy_id, int *dst_user, bool must_be_public, std::string& err, bool copy_name)
@@ -313,7 +313,7 @@ int Policies::duplicate_policy(int user, int id, int dst_policy_id, int *dst_use
 
     find_save_name(destination_user, NULL, p->filename, p->name.c_str());
     if (p->type == POLICY_UNKNOWN)
-        export_policy(destination_user, p->filename.c_str(), old->id, err);
+        export_policy(destination_user, p->filename.c_str(), old->id, err, false);
 
     return (int)p->id;
 }
@@ -334,7 +334,7 @@ int Policies::move_policy(int user, int id, int dst_policy_id, std::string& err)
     return new_id;
 }
 
-int Policies::export_policy(int user, const char* filename, int id, std::string& err)
+int Policies::export_policy(int user, const char* filename, int id, std::string& err, bool is_save)
 {
     Policy *p = get_policy(user, id, err);
     if (!p)
@@ -347,6 +347,8 @@ int Policies::export_policy(int user, const char* filename, int id, std::string&
 
         filename = p->filename.c_str();
     }
+
+    p->set_keep_public(is_save);
 
     return p->export_schema(filename, err);
 }
@@ -362,6 +364,8 @@ int Policies::dump_policy_to_memory(int user, int id, bool must_be_public, std::
         err = "This policy is not a public policy";
         return -1;
     }
+
+    p->set_keep_public(false);
 
     if (p->dump_schema(memory) < 0)
     {
@@ -684,7 +688,7 @@ int Policies::erase_xslt_policy_node(std::map<size_t, Policy *>& user_policies, 
     std::map<size_t, Policy *>::iterator it = user_policies.find(id);
     if (it == user_policies.end())
     {
-        err = "Policy is not exisiting";
+        err = "Policy is not existing";
         return -1;
     }
 
@@ -711,7 +715,7 @@ int Policies::erase_policy(int user, int id, std::string& err)
     std::map<int, std::map<size_t, Policy *> >::iterator it = policies.find(user);
     if (it == policies.end())
     {
-        err = "User policies are not exisiting";
+        err = "User policies are not existing";
         return -1;
     }
 
@@ -863,6 +867,7 @@ xmlDocPtr Policies::create_doc(int user, int id)
     if (!p)
         return NULL;
 
+    p->set_keep_public(true);
     return p->create_doc();
 }
 
@@ -889,20 +894,15 @@ bool Policies::policy_exists(int user, const std::string& policy)
 
 int Policies::create_xslt_policy_from_file(int user, long file_id, std::string& err)
 {
-    std::bitset<MediaConchLib::report_Max> report_set;
-    std::vector<long> files;
-    std::map<std::string, std::string> options;
-    std::vector<size_t> policies_ids;
-    std::vector<std::string> policies_contents;
     MediaConchLib::Checker_ReportRes result;
 
-    report_set.set(MediaConchLib::report_MediaInfo);
-    files.push_back(file_id);
-
-    core->checker_get_report(user, report_set, MediaConchLib::format_Xml, files,
-                             policies_ids, policies_contents,
-                             options, &result, err,
-                             NULL, NULL);
+    CheckerReport cr;
+    cr.user = user;
+    cr.files.push_back(file_id);
+    cr.report_set.set(MediaConchLib::report_MediaInfo);
+    cr.format = MediaConchLib::format_Xml;
+    if (core->reports.checker_get_report(cr, &result, err) < 0)
+        return -1;
     if (!result.valid || !result.report.length())
     {
         err = "Implementation report not found";
@@ -1438,7 +1438,7 @@ int Policies::transform_with_xslt_memory(const std::string& report, const std::s
                                          const std::map<std::string, std::string>& opts,
                                          std::string& result)
 {
-    return core->transform_with_xslt_memory(report, memory, opts, result);
+    return core->reports.transform_with_xslt_memory(report, memory, opts, result);
 }
 
 //---------------------------------------------------------------------------

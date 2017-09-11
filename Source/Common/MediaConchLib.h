@@ -18,11 +18,23 @@
 #include <vector>
 #include <map>
 #include <bitset>
+#ifdef MEDIAINFO_DLL_RUNTIME
+    #include "MediaInfoDLL/MediaInfoDLL.h"
+    #define MediaInfoNameSpace MediaInfoDLL
+#elif defined MEDIAINFO_DLL_STATIC
+    #include "MediaInfoDLL/MediaInfoDLL_Static.h"
+    #define MediaInfoNameSpace MediaInfoDLL
+#else
+    #include "MediaInfo/MediaInfo.h"
+    #define MediaInfoNameSpace MediaInfoLib
+#endif
+#include <MediaInfo/MediaInfo_Events.h>
 
 //---------------------------------------------------------------------------
 namespace MediaConch {
 
 class Core;
+class CheckerReport;
 class DaemonClient;
 class Policy;
 class XsltPolicyRule;
@@ -67,6 +79,8 @@ public:
         format_JsTree,
         format_Html,
         format_OrigXml,
+        format_Simple,
+        format_CSV,
         format_Max,
     };
 
@@ -99,19 +113,19 @@ public:
 
     struct Checker_StatusRes
     {
-        Checker_StatusRes() : id(-1), finished(false), has_error(false), percent(NULL), tool(NULL), generated_id(-1), source_id(-1) {}
+        Checker_StatusRes() : id(-1), finished(false), has_error(false), percent(NULL), tool(NULL), source_id(-1) {}
 
-        long         id;
-        bool         finished;
+        long               id;
+        bool               finished;
 
-        bool         has_error;
-        std::string  error_log;
+        bool               has_error;
+        std::string        error_log;
 
-        double      *percent;
+        double            *percent;
 
-        int         *tool;
-        long         generated_id;
-        long         source_id;
+        int               *tool;
+        std::vector<long>  generated_id;
+        long               source_id;
     };
 
     struct Checker_ReportRes
@@ -131,14 +145,14 @@ public:
 
     struct Checker_FileInfo
     {
-        Checker_FileInfo() : generated_id(-1), source_id(-1), generated_time((size_t)-1), analyzed(false), has_error(false) {}
+        Checker_FileInfo() : source_id(-1), generated_time((size_t)-1), analyzed(false), has_error(false) {}
 
         std::string                                      filename;
         std::string                                      file_last_modification;
         std::string                                      generated_log;
         std::string                                      generated_error_log;
         std::vector<std::pair<std::string,std::string> > options;
-        long                                             generated_id;
+        std::vector<long>                                generated_id;
         long                                             source_id;
         size_t                                           generated_time;
         bool                                             analyzed;
@@ -247,6 +261,8 @@ public:
     static const std::string display_text_name;
     static const std::string display_html_name;
     static const std::string display_jstree_name;
+    static const std::string display_simple_name;
+    static const std::string display_csv_name;
 
     // General
     int  init(std::string& err);
@@ -254,7 +270,8 @@ public:
     void reset_daemon_client();
 
     //Options
-    int test_mil_option(const std::string& key, std::string& value, std::string& report);
+    int  test_mil_option(const std::string& key, std::string& value, std::string& report);
+    bool mil_has_curl_enabled();
 
     // MediaConch
     int  mediaconch_get_plugins(std::vector<std::string>& plugins, std::string& error);
@@ -291,22 +308,18 @@ public:
     int  checker_file_information(int user, long id, Checker_FileInfo& info, std::string& error);
 
     // Output
-    int  checker_get_report(int user, const std::bitset<report_Max>& Report, format f,
-                            const std::vector<long>& files,
-                            const std::vector<size_t>& policies_ids,
-                            const std::vector<std::string>& policies_contents,
-                            const std::map<std::string, std::string>& options,
-                            Checker_ReportRes* result, std::string& error,
-                            const std::string* display_name = NULL,
-                            const std::string* display_content = NULL);
-    int checker_validate(int user, MediaConchLib::report report, const std::vector<long>& files,
-                         const std::vector<size_t>& policies_ids,
-                         const std::vector<std::string>& policies_contents,
-                         const std::map<std::string, std::string>& options,
-                         std::vector<Checker_ValidateRes*>& result, std::string& error);
+    int  checker_get_report(CheckerReport& c_report, Checker_ReportRes* result, std::string& error);
+    int  checker_validate(int user, MediaConchLib::report report, const std::vector<long>& files,
+                          const std::vector<size_t>& policies_ids,
+                          const std::vector<std::string>& policies_contents,
+                          const std::map<std::string, std::string>& options,
+                          std::vector<Checker_ValidateRes*>& result, std::string& error);
 
     //Clear
-    int remove_report(int user, const std::vector<long>& files, std::string& error);
+    int  checker_clear(int user, const std::vector<long>& files, std::string& error);
+
+    //Stop
+    int  checker_stop(int user, const std::vector<long>& files, std::string& error);
 
     // Policies
     //   Create policy
@@ -352,14 +365,9 @@ public:
     void               set_implementation_verbosity(const std::string& verbosity);
     const std::string& get_implementation_verbosity();
 
-    // Xsl Transformation
-    int  transform_with_xslt_file(const std::string& report, const std::string& file,
-                                  const std::map<std::string, std::string>& opts, std::string& result);
-    int  transform_with_xslt_memory(const std::string& report, const std::string& memory,
-                                    const std::map<std::string, std::string>& opts, std::string& result);
-
     // Configuration
     void               load_configuration();
+    void               set_default_scheduler_max_threads(size_t nb);
     void               set_configuration_file(const std::string& file);
     const std::string& get_configuration_file() const;
     void               load_plugins_configuration();
@@ -383,6 +391,9 @@ public:
     int close_http_client();
     int load_system_policy();
     int load_existing_policy();
+
+    // Register Event callback
+    void register_log_callback(void (*log)(struct MediaInfo_Event_Log_0* Event));
 
 private:
     MediaConchLib (const MediaConchLib&);

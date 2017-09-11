@@ -25,7 +25,7 @@ namespace MediaConch {
 // RESTAPI
 //***************************************************************************
 
-const std::string RESTAPI::API_VERSION = "1.13";
+const std::string RESTAPI::API_VERSION = "1.14";
 
 //***************************************************************************
 // Constructor/Destructor
@@ -179,6 +179,14 @@ RESTAPI::Checker_Report_Res::~Checker_Report_Res()
 
 //---------------------------------------------------------------------------
 RESTAPI::Checker_Clear_Res::~Checker_Clear_Res()
+{
+    for (size_t i = 0; i < nok.size(); ++i)
+        delete nok[i];
+    nok.clear();
+}
+
+//---------------------------------------------------------------------------
+RESTAPI::Checker_Stop_Res::~Checker_Stop_Res()
 {
     for (size_t i = 0; i < nok.size(); ++i)
         delete nok[i];
@@ -493,8 +501,8 @@ std::string RESTAPI::Checker_Report_Req::to_str() const
     }
     out << "],\"policies_ids_size\":" << policies_ids.size();
     out << ",\"policies_contents_size\":" << policies_contents.size();
-    out << ",\"display_name\":" << display_name;
-    out << ",\"display_content_length\":" << display_content.size();
+    out << ",\"display_name\":\"" << display_name;
+    out << "\",\"display_content_length\":" << display_content.size();
     out << ",\"options\":[";
 
     std::map<std::string, std::string>::const_iterator it = options.begin();
@@ -510,6 +518,23 @@ std::string RESTAPI::Checker_Report_Req::to_str() const
 
 //---------------------------------------------------------------------------
 std::string RESTAPI::Checker_Clear_Req::to_str() const
+{
+    std::stringstream out;
+
+    out << "{\"user\":" << user;
+    out << ",\"ids\":[";
+    for (size_t i = 0; i < ids.size(); ++i)
+    {
+        if (i)
+            out << ",";
+        out << ids[i];
+    }
+    out << "]}";
+    return out.str();
+}
+
+//---------------------------------------------------------------------------
+std::string RESTAPI::Checker_Stop_Req::to_str() const
 {
     std::stringstream out;
 
@@ -549,8 +574,15 @@ std::string RESTAPI::Checker_Validate_Req::to_str() const
     }
     RESTAPI api;
     out << "],\"report\":" << api.get_Report_string(report);
-    out << ",\"policies_ids_size\":" << policies_ids.size();
-    out << ",\"policies_contents_size\":" << policies_contents.size();
+    out << ",\"policies_ids\":[";
+
+    for (size_t i = 0; i < policies_ids.size(); ++i)
+    {
+        if (i)
+            out << ",";
+        out << policies_ids[i];
+    }
+    out << "],\"policies_contents_size\":" << policies_contents.size();
     out << ",\"options\":[";
 
     std::map<std::string, std::string>::const_iterator it = options.begin();
@@ -1017,8 +1049,17 @@ std::string RESTAPI::Checker_Status_Ok::to_str() const
         out << ",\"tool\":" << api.get_Report_string(*tool);
     }
 
-    if (generated_id != -1)
-        out << ",\"generated_id\":" << generated_id;
+    if (generated_id.size())
+    {
+        out << ",\"generated_id\":[";
+        for (size_t i = 0; i < generated_id.size(); ++i)
+        {
+            if (i)
+                out << ",";
+            out << generated_id[i];
+        }
+        out << "]";
+    }
 
     if (source_id != -1)
         out << ",\"source_id\":" << source_id;
@@ -1078,6 +1119,29 @@ std::string RESTAPI::Checker_Report_Res::to_str() const
 
 //---------------------------------------------------------------------------
 std::string RESTAPI::Checker_Clear_Res::to_str() const
+{
+    std::stringstream out;
+
+    out << "{ok:[";
+    for (size_t i = 0; i < ok.size(); ++i)
+    {
+        if (i)
+            out << ",";
+        out << ok[i];
+    }
+    out << "],nok:[";
+    for (size_t i = 0; i < nok.size(); ++i)
+    {
+        if (i)
+            out << ",";
+        out << nok[i]->to_str();
+    }
+    out << "]}";
+    return out.str();
+}
+
+//---------------------------------------------------------------------------
+std::string RESTAPI::Checker_Stop_Res::to_str() const
 {
     std::stringstream out;
 
@@ -1195,7 +1259,14 @@ std::string RESTAPI::Checker_File_Information_Res::to_str() const
     {
         out << "\"filename\":\"" << filename << "\"";
         out << ",\"file_last_modification\":\"" << file_last_modification << "\"";
-        out << ",\"generated_id\":" << generated_id;
+        out << ",\"generated_id\":[";
+        for (size_t i = 0; i < generated_id.size(); ++i)
+        {
+            if (i)
+                out << ",";
+            out << generated_id[i];
+        }
+        out << "]";
         out << ",\"source_id\":" << source_id;
         out << ",\"generated_time\":" << generated_time;
         out << ",\"generated_log\":\"" << generated_log << "\"";
@@ -1842,6 +1913,39 @@ int RESTAPI::serialize_checker_clear_req(Checker_Clear_Req& req, std::string& da
     for (size_t i = 0; i < req.ids.size(); ++i)
         ss << "&id=" << req.ids[i];
     data = ss.str();
+
+    return 0;
+}
+
+//---------------------------------------------------------------------------
+int RESTAPI::serialize_checker_stop_req(Checker_Stop_Req& req, std::string& data, std::string& err)
+{
+    Container::Value v, child, user, ids;
+
+    user.type = Container::Value::CONTAINER_TYPE_INTEGER;
+    user.l = req.user;
+
+    ids.type = Container::Value::CONTAINER_TYPE_ARRAY;
+    for (size_t i = 0; i < req.ids.size(); ++i)
+    {
+        Container::Value id;
+        id.type = Container::Value::CONTAINER_TYPE_INTEGER;
+        id.l = req.ids[i];
+        ids.array.push_back(id);
+    }
+
+    child.type = Container::Value::CONTAINER_TYPE_OBJECT;
+    child.obj["user"] = user;
+    child.obj["ids"] = ids;
+
+    v.type = Container::Value::CONTAINER_TYPE_OBJECT;
+    v.obj["CHECKER_STOP"] = child;
+
+    if (model->serialize(v, data) < 0)
+    {
+        err = model->get_error();
+        return -1;
+    }
 
     return 0;
 }
@@ -2755,6 +2859,31 @@ int RESTAPI::serialize_checker_clear_res(Checker_Clear_Res& res, std::string& da
 }
 
 //---------------------------------------------------------------------------
+int RESTAPI::serialize_checker_stop_res(Checker_Stop_Res& res, std::string& data, std::string& err)
+{
+    Container::Value v, child, nok;
+
+    nok.type = Container::Value::CONTAINER_TYPE_ARRAY;
+    for (size_t i = 0; i < res.nok.size(); ++i)
+        nok.array.push_back(serialize_mediaconch_nok(res.nok[i], err));
+
+    child.type = Container::Value::CONTAINER_TYPE_OBJECT;
+    child.obj["ok"] = serialize_ids(res.ok, err);
+    child.obj["nok"] = nok;
+
+    v.type = Container::Value::CONTAINER_TYPE_OBJECT;
+    v.obj["CHECKER_STOP_RESULT"] = child;
+
+    if (model->serialize(v, data) < 0)
+    {
+        err = model->get_error();
+        return -1;
+    }
+
+    return 0;
+}
+
+//---------------------------------------------------------------------------
 int RESTAPI::serialize_checker_list_res(Checker_List_Res& res, std::string& data, std::string& err)
 {
     Container::Value v, child, files, nok;
@@ -2891,8 +3020,14 @@ int RESTAPI::serialize_checker_file_information_res(Checker_File_Information_Res
         file_last_modification.s = res.file_last_modification;
         child.obj["file_last_modification"] = file_last_modification;
 
-        generated_id.type = Container::Value::CONTAINER_TYPE_INTEGER;
-        generated_id.l = res.generated_id;
+        generated_id.type = Container::Value::CONTAINER_TYPE_ARRAY;
+        for (size_t i = 0; i < res.generated_id.size(); ++i)
+        {
+            Container::Value g_id;
+            g_id.type = Container::Value::CONTAINER_TYPE_INTEGER;
+            g_id.l = res.generated_id[i];
+            generated_id.array.push_back(g_id);
+        }
         child.obj["generated_id"] = generated_id;
 
         source_id.type = Container::Value::CONTAINER_TYPE_INTEGER;
@@ -4013,6 +4148,53 @@ RESTAPI::Checker_Clear_Req *RESTAPI::parse_checker_clear_req(const std::string& 
     }
 
     Checker_Clear_Req *req = new Checker_Clear_Req;
+    for (size_t i = 0; i < ids->array.size(); ++i)
+    {
+        Container::Value *id = &ids->array[i];
+
+        if (id->type != Container::Value::CONTAINER_TYPE_INTEGER)
+        {
+            err = "id field type is not correct in the request";
+            delete req;
+            return NULL;
+        }
+        req->ids.push_back(id->l);
+    }
+
+    Container::Value *user = model->get_value_by_key(*child, "user");
+    if (user && user->type == Container::Value::CONTAINER_TYPE_INTEGER)
+        req->user = user->l;
+    return req;
+}
+
+//---------------------------------------------------------------------------
+RESTAPI::Checker_Stop_Req *RESTAPI::parse_checker_stop_req(const std::string& data, std::string& err)
+{
+    Container::Value v, *child;
+
+    if (model->parse(data, v))
+    {
+        err = model->get_error();
+        return NULL;
+    }
+
+    child = model->get_value_by_key(v, "CHECKER_STOP");
+    if (!child || child->type != Container::Value::CONTAINER_TYPE_OBJECT)
+    {
+        err = "Missing CHECKER_STOP in the request";
+        return NULL;
+    }
+
+    Container::Value *ids;
+    ids = model->get_value_by_key(*child, "ids");
+
+    if (!ids || ids->type != Container::Value::CONTAINER_TYPE_ARRAY)
+    {
+        err = "Missing ids field in the request";
+        return NULL;
+    }
+
+    Checker_Stop_Req *req = new Checker_Stop_Req;
     for (size_t i = 0; i < ids->array.size(); ++i)
     {
         Container::Value *id = &ids->array[i];
@@ -5384,6 +5566,50 @@ RESTAPI::Checker_Report_Req *RESTAPI::parse_uri_checker_report_req(const std::st
 RESTAPI::Checker_Clear_Req *RESTAPI::parse_uri_checker_clear_req(const std::string& uri, std::string&)
 {
     Checker_Clear_Req *req = new Checker_Clear_Req;
+
+    size_t start = 0;
+    size_t and_pos = 0;
+    while (start != std::string::npos)
+    {
+        size_t key_start = start;
+        start = uri.find("=", start);
+        if (start == std::string::npos)
+            continue;
+
+        std::string substr = uri.substr(key_start, start - key_start);
+        ++start;
+        and_pos = uri.find("&", start);
+        std::string val = uri.substr(start, and_pos - start);
+
+        start = and_pos;
+        if (start != std::string::npos)
+            start += 1;
+
+        if (substr == "id")
+        {
+            if (!val.length())
+                continue;
+
+            req->ids.push_back(strtoll(val.c_str(), NULL, 10));
+        }
+        else if (substr == "user")
+        {
+            if (!val.length())
+                continue;
+
+            req->user = strtoll(val.c_str(), NULL, 10);
+        }
+        else
+            start = std::string::npos;
+    }
+
+    return req;
+}
+
+//---------------------------------------------------------------------------
+RESTAPI::Checker_Stop_Req *RESTAPI::parse_uri_checker_stop_req(const std::string& uri, std::string&)
+{
+    Checker_Stop_Req *req = new Checker_Stop_Req;
 
     size_t start = 0;
     size_t and_pos = 0;
@@ -7079,6 +7305,75 @@ RESTAPI::Checker_Clear_Res *RESTAPI::parse_checker_clear_res(const std::string& 
 }
 
 //---------------------------------------------------------------------------
+RESTAPI::Checker_Stop_Res *RESTAPI::parse_checker_stop_res(const std::string& data, std::string& err)
+{
+    Container::Value v, *child;
+
+    if (model->parse(data, v))
+    {
+        err = model->get_error();
+        return NULL;
+    }
+
+    child = model->get_value_by_key(v, "CHECKER_STOP_RESULT");
+    if (!child || child->type != Container::Value::CONTAINER_TYPE_OBJECT)
+    {
+        err = "Missing CHECKER_STOP_RESULT in the result";
+        return NULL;
+    }
+
+    Container::Value *ok, *nok;
+    ok = model->get_value_by_key(*child, "ok");
+    nok = model->get_value_by_key(*child, "nok");
+
+    Checker_Stop_Res *res = new Checker_Stop_Res;
+    if (ok)
+    {
+        if (ok->type != Container::Value::CONTAINER_TYPE_ARRAY)
+        {
+            err = "oks field has not the correct type";
+            delete res;
+            return NULL;
+        }
+        for (size_t i = 0; i < ok->array.size(); ++i)
+        {
+            Container::Value *tmp = &ok->array[i];
+
+            if (tmp->type != Container::Value::CONTAINER_TYPE_INTEGER)
+            {
+                err = "ok field has not the correct type";
+                delete res;
+                return NULL;
+            }
+            res->ok.push_back(tmp->l);
+        }
+    }
+
+    if (nok)
+    {
+        if (nok->type != Container::Value::CONTAINER_TYPE_ARRAY)
+        {
+            err = "nok field has not the correct type";
+            delete res;
+            return NULL;
+        }
+
+        for (size_t i = 0; i < nok->array.size(); ++i)
+        {
+            MediaConch_Nok *tmp = NULL;
+            if (parse_mediaconch_nok(&nok->array[i], &tmp, err) < 0)
+            {
+                delete res;
+                return NULL;
+            }
+            res->nok.push_back(tmp);
+        }
+    }
+
+    return res;
+}
+
+//---------------------------------------------------------------------------
 RESTAPI::Checker_List_Res *RESTAPI::parse_checker_list_res(const std::string& data, std::string& err)
 {
     Container::Value v, *child;
@@ -7200,7 +7495,7 @@ RESTAPI::Checker_File_From_Id_Res *RESTAPI::parse_checker_file_from_id_res(const
 
     Checker_File_From_Id_Res *res = new Checker_File_From_Id_Res;
     Container::Value *file = model->get_value_by_key(*child, "file");
-    Container::Value *nok = model->get_value_by_key(*child, "file");
+    Container::Value *nok = model->get_value_by_key(*child, "nok");
 
     if (nok)
     {
@@ -7326,8 +7621,14 @@ RESTAPI::Checker_File_Information_Res *RESTAPI::parse_checker_file_information_r
             res->file_last_modification = file_last_modification->s;
 
         Container::Value *generated_id = model->get_value_by_key(*child, "generated_id");
-        if (generated_id && generated_id->type == Container::Value::CONTAINER_TYPE_INTEGER)
-            res->generated_id = generated_id->l;
+        if (generated_id && generated_id->type == Container::Value::CONTAINER_TYPE_ARRAY)
+        {
+            for (size_t j = 0; j < generated_id->array.size(); ++j)
+            {
+                if (generated_id->array[j].type == Container::Value::CONTAINER_TYPE_INTEGER)
+                    res->generated_id.push_back(generated_id->array[j].l);
+            }
+        }
 
         Container::Value *source_id = model->get_value_by_key(*child, "source_id");
         if (source_id && source_id->type == Container::Value::CONTAINER_TYPE_INTEGER)
@@ -8623,10 +8924,17 @@ Container::Value RESTAPI::serialize_checker_status_oks(std::vector<Checker_Statu
             v.obj["tool"] = tool;
         }
 
-        if (array[i]->generated_id != -1)
+
+        if (array[i]->generated_id.size())
         {
-            generated_id.type = Container::Value::CONTAINER_TYPE_INTEGER;
-            generated_id.l = array[i]->generated_id;
+            generated_id.type = Container::Value::CONTAINER_TYPE_ARRAY;
+            for (size_t j = 0; j < array[i]->generated_id.size(); ++j)
+            {
+                Container::Value g_id;
+                g_id.type = Container::Value::CONTAINER_TYPE_INTEGER;
+                g_id.l = array[i]->generated_id[j];
+                generated_id.array.push_back(g_id);
+            }
             v.obj["generated_id"] = generated_id;
         }
 
@@ -9165,8 +9473,14 @@ int RESTAPI::parse_checker_status_ok(Container::Value *v, std::vector<Checker_St
                 ok->error_log = error_log->s;
         }
 
-        if (generated_id && generated_id->type == Container::Value::CONTAINER_TYPE_INTEGER)
-            ok->generated_id = generated_id->l;
+        if (generated_id && generated_id->type == Container::Value::CONTAINER_TYPE_ARRAY)
+        {
+            for (size_t j = 0; j < generated_id->array.size(); ++j)
+            {
+                if (generated_id->array[j].type == Container::Value::CONTAINER_TYPE_INTEGER)
+                    ok->generated_id.push_back(generated_id->array[j].l);
+            }
+        }
 
         if (source_id && source_id->type == Container::Value::CONTAINER_TYPE_INTEGER)
             ok->source_id = source_id->l;

@@ -21,13 +21,16 @@
 #include "DpfManager.h"
 #include "PluginLog.h"
 #include "PluginFileLog.h"
-#include "FFmpeg.h"
+#include "PluginPreHook.h"
 #include <ZenLib/Ztring.h>
+#include <ZenLib/File.h>
 
 #if defined(_WIN32) || defined(WIN32)
 #include <Winbase.h>
+#include <windows.h>
 #else
 #include <sys/time.h>
+#include <unistd.h>
 #endif
 
 //---------------------------------------------------------------------------
@@ -38,7 +41,7 @@ namespace MediaConch {
     //***************************************************************************
 
     //---------------------------------------------------------------------------
-    Scheduler::Scheduler(Core* c) : core(c), max_threads(1)
+    Scheduler::Scheduler(Core* c) : core(c), max_threads_modified(false), max_threads(1)
     {
         queue = new Queue(this);
     }
@@ -65,11 +68,12 @@ namespace MediaConch {
     //---------------------------------------------------------------------------
     int Scheduler::add_element_to_queue(int user, const std::string& filename, long file_id,
                                         const std::vector<std::pair<std::string,std::string> >& options,
-                                        const std::vector<std::string>& plugins, bool mil_analyze)
+                                        const std::vector<std::string>& plugins, bool mil_analyze,
+                                        const std::string& alias)
     {
         static int index = 0;
 
-        queue->add_element(PRIORITY_NONE, index++, user, filename, file_id, options, plugins, mil_analyze);
+        queue->add_element(PRIORITY_NONE, index++, user, filename, file_id, options, plugins, mil_analyze, alias);
         run_element();
         return index - 1;
     }
@@ -114,6 +118,9 @@ namespace MediaConch {
         if (another_work_to_do(el, MI) <= 0)
             return;
 
+        if (attachments_to_add(el) < 0)
+            return;
+
         CS.Enter();
         core->register_reports_to_database(el->user, el->file_id, MI);
         remove_element(el);
@@ -149,6 +156,28 @@ namespace MediaConch {
             if (it->first && it->first->user == user)
                 vec.push_back(it->first->file_id);
         CS.Leave();
+
+        return 0;
+    }
+
+    int Scheduler::stop_elements(int user, const std::vector<long>& vec, std::string&)
+    {
+        CS.Enter();
+        for (size_t i = 0; i < vec.size(); ++i)
+        {
+            std::map<QueueElement*, QueueElement*>::iterator it = working.begin();
+            for (; it != working.end(); ++it)
+            {
+                if (it->first && it->first->user == user && it->first->file_id == vec[i])
+                {
+                    it->first->stop(); 
+                    remove_element(it->first);
+                    break;
+                }
+            }
+        }
+        CS.Leave();
+        run_element();
 
         return 0;
     }
@@ -205,6 +234,39 @@ namespace MediaConch {
         return file_id;
     }
 
+    int Scheduler::attachments_to_add(QueueElement *el)
+    {
+        std::string err;
+        for (size_t i = 0; i < el->attachments.size(); ++i)
+        {
+            if (!el->attachments[i])
+                continue;
+
+            std::vector<std::pair<std::string,std::string> > options;
+            for (size_t j = 0; j < el->options.size(); ++j)
+                options.push_back(std::make_pair(el->options[j].first, el->options[j].second));
+
+            std::vector<std::string> plugins;
+            for (size_t j = 0; j < el->plugins.size(); ++j)
+                plugins.push_back(el->plugins[j]);
+
+            std::stringstream alias;
+            alias << "attachment";
+            if (i)
+                alias << i;
+            alias << ":" << el->filename << ":" << el->attachments[i]->realname;
+
+            std::string log;
+            long id;
+            if ((id = core->checker_analyze(el->user, el->attachments[i]->filename,
+                                            el->file_id, 0, log, log,
+                                            options, plugins, err, el->mil_analyze, alias.str())) >= 0)
+                core->file_add_generated_file(el->user, el->file_id, id, err);
+        }
+
+        return 0;
+    }
+
     int Scheduler::another_work_to_do(QueueElement *el, MediaInfoNameSpace::MediaInfo* MI)
     {
         // Before registering, check the format
@@ -224,14 +286,14 @@ namespace MediaConch {
         else
             return 1;
 
-        ((PluginFormat*)p)->set_file(el->filename);
+        ((PluginFormat*)p)->set_file(el->real_filename);
         if (p->run(error) < 0)
             core->plugin_add_log(PluginLog::LOG_LEVEL_ERROR, error);
         const std::string& report = p->get_report();
         MediaConchLib::report report_kind = ((PluginFormat*)p)->get_report_kind();
 
         CS.Enter();
-        core->register_reports_to_database(el->user, el->file_id, report, report_kind, MI);
+        core->register_reports_to_database(el->user, el->file_id, report, report_kind, "", MI);
         remove_element(el);
         CS.Leave();
         run_element();
@@ -248,7 +310,7 @@ namespace MediaConch {
             working.erase(it);
     }
 
-    int Scheduler::execute_pre_hook_plugins(QueueElement *el, std::string& err, bool& analyze_file)
+    int Scheduler::execute_pre_hook_plugins(QueueElement *el, std::string& err)
     {
         // Before registering, check the format
         std::vector<Plugin*> plugins = core->get_pre_hook_plugins();
@@ -269,10 +331,8 @@ namespace MediaConch {
                 continue;
 
             Plugin *p = NULL;
-            if (plugins[i]->get_name() == "FFmpeg")
-                p = new FFmpeg(*(FFmpeg*)plugins[i]);
-            else if (plugins[i]->get_name() == "FileLog")
-                p = new PluginFileLog(*(PluginFileLog*)plugins[i]);
+            if (plugins[i]->get_name() == "PreHook")
+                p = new PluginPreHook(*(PluginPreHook*)plugins[i]);
             else
                 continue;
 
@@ -297,23 +357,42 @@ namespace MediaConch {
             size_t time_passed = (time_after.tv_sec - time_before.tv_sec) * 1000 + (time_after.tv_usec - time_before.tv_usec) / 1000;
 #endif
 
-            if (ret == 0 && ((PluginPreHook*)p)->is_creating_file())
+            if (ret == 0 && ((PluginPreHook*)p)->is_creating_files())
             {
                 std::string generated_log = ((PluginPreHook*)p)->get_report();
                 std::string generated_error_log = ((PluginPreHook*)p)->get_report_err();
-                new_file = ((PluginPreHook*)p)->get_output_file();
 
-                std::vector<std::pair<std::string,std::string> > options;
-                for (size_t i = 0; i < el->options.size(); ++i)
-                    options.push_back(std::make_pair(el->options[i].first, el->options[i].second));
+                std::vector<std::pair<std::string, std::string> > options;
+                for (size_t j = 0; j < el->options.size(); ++j)
+                    options.push_back(std::make_pair(el->options[j].first, el->options[j].second));
 
-                std::vector<std::string> plugins;
                 std::string err;
-                long id = core->checker_analyze(el->user, new_file, old_id, time_passed, generated_log,
-                                                generated_error_log, options, plugins, err, el->mil_analyze);
-                if (id >= 0)
-                    core->file_update_generated_file(el->user, old_id, id, err);
-                old_id = id;
+                std::vector<std::string> plugins;
+                std::vector<PluginPreHook::Output*> new_files;
+                ((PluginPreHook*)p)->get_outputs(new_files);
+
+                long gen_id = -1;
+                for (size_t j = 0; j < new_files.size(); ++j)
+                {
+                    if (!new_files[j])
+                        continue;
+
+                    if (!new_files[j]->create_file)
+                        continue;
+
+                    new_file = new_files[j]->output_file;
+
+                    long id = core->checker_analyze(el->user, new_file, old_id, time_passed, generated_log,
+                                                    generated_error_log, options, plugins, err,
+                                                    new_files[j]->analyze);
+                    if (id >= 0)
+                    {
+                        core->file_add_generated_file(el->user, old_id, id, err);
+                        gen_id = id;
+                    }
+                }
+
+                old_id = gen_id;
             }
             else if (ret)
             {
@@ -323,13 +402,8 @@ namespace MediaConch {
                 return ret;
             }
 
-            if (!((PluginPreHook*)p)->analyzing_source())
-                analyze_file = false;
             delete p;
         }
-
-        if (!analyze_file)
-            remove_element(el);
 
         return ret;
     }
@@ -337,6 +411,12 @@ namespace MediaConch {
     void Scheduler::write_log_timestamp(int level, std::string log)
     {
         core->plugin_add_log_timestamp(level, log);
+    }
+
+    void Scheduler::log_cb(struct MediaInfo_Event_Log_0 *event)
+    {
+        if (core->ecb.log)
+            core->ecb.log(event);
     }
 
 }

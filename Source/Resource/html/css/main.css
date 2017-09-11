@@ -148,14 +148,28 @@ footer .navbar {
 }
 
 .checker-results .btn {
-    font-size: inherit;
-    padding: 0 0 0 10px;
-    float: right;
+    font-size: 14px;
+    line-height: 16px;
     border: 0px;
+    padding: 0;
+}
+
+.checker-results .btn.result-close {
+    padding: 0 0 0 10px;
 }
 
 #result-table td p {
     margin: 0;
+}
+
+@media (max-width: 1199px) {
+    .status-text {
+        display: none;
+    }
+}
+
+.statusButton {
+    display: inline-block;
 }
 
 .tab-pane {
@@ -267,7 +281,7 @@ p.registration {
     margin-left: 15px;
 }
 
-.spinner-cell, .spinner-status {
+.spinner-cell, .spinner-status, .spinner-policy {
     background: transparent url("qrc:/ajax-spinner-small.gif");
     width: 16px;
     height: 14px;
@@ -275,8 +289,12 @@ p.registration {
     margin: 0 auto;
 }
 
-.spinner-status {
+.spinner-status, .spinner-policy {
     display: inline-block;
+}
+
+.spinner-policy {
+    margin-left: 10px;
 }
 
 .spinner-modal {
@@ -300,10 +318,6 @@ p.registration {
     text-decoration: underline;
 }
 
-.policiesLineWrapper {
-    margin-bottom: 20px;
-}
-
 .policiesList .col-xs-12 .policyBox {
     border: 1px solid #ddd;
     padding: 15px 30px;
@@ -312,6 +326,7 @@ p.registration {
     border-radius: 4px;
     display: block;
     background-color: ghostwhite;
+    margin-bottom: 20px;
 }
 
 .policiesList .col-xs-12 .policyBox.policyBoxDisabled {
@@ -360,4 +375,25 @@ p.registration {
 
 .popover-content {
     word-wrap: break-word;
+}
+
+.modal-body .jstree-default .jstree-anchor {
+    line-height: 20px;
+    height: 20px;
+}
+
+.modal-body .jstree-default .jstree-icon:empty {
+    height: 20px;
+    line-height: 20px;
+    width: 20px;
+}
+
+.modal-body .jstree-default .jstree-node {
+    min-height: 20px;
+    line-height: 20px;
+}
+
+.jstree-grid-cell-regular.jstree-animated {
+    line-height: 20px;
+    height: 20px;
 }

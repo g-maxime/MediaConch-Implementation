@@ -1,8 +1,8 @@
-%define mediaconch_version          16.11
-%define libmediainfo_version        0.7.91
-%define libzen_version              0.4.34
+%define mediaconch_version          17.07
+%define libmediainfo_version        0.7.98
+%define libzen_version              0.4.36
 
-%if 0%{?fedora} || 0%{?centos_version} >= 600 || 0%{?rhel_version} >= 600
+%if 0%{?fedora_version} || 0%{?centos_version} >= 600 || 0%{?rhel_version} >= 600
 %define libmediainfo_name libmediainfo
 %define libzen_name libzen
 %else
@@ -11,7 +11,7 @@
 %endif
 
 # CentOS also set rhel macro
-%if ! 0%{?suse_version} && ! 0%{?rhel} || 0%{?suse_version} >= 1200 || 0%{?centos_version} >= 700
+%if ! 0%{?suse_version} && ! 0%{?rhel} || 0%{?suse_version} >= 1200 || 0%{?rhel_version} >= 700 || 0%{?centos_version} >= 700
 %define build_server 1
 %else
 %define build_server 0
@@ -23,16 +23,16 @@
 %define build_gui 0
 %endif
 
-Name:           mediaconch
+Name:           mediaconch-implementation
 Version:        %{mediaconch_version}
 Release:        1
-Summary:        Implementation checker and policy checker for video and audio files (CLI)
+Summary:        Implementation checker for video and audio files (CLI)
 
 Group:          Applications/Multimedia
 License:        MPL-2.0+/GPL-3.0+
 URL:            http://MediaArea.net/MediaConch
 Packager:       MediaArea.net SARL <info@mediaarea.net>
-Source0:        %{name}_%{version}.tar.gz
+Source0:        mediaconch_%{version}.tar.gz
 
 Requires:       %{libzen_name}%{?_isa} >= %{libzen_version}
 Requires:       %{libmediainfo_name}%{?_isa} >= %{libmediainfo_version}
@@ -52,7 +52,7 @@ BuildRequires:  libxml2-devel
 BuildRequires:  libxslt-devel
 BuildRequires:  sqlite-devel
 
-%if ! 0%{?rhel} || 0%{?centos_version} >= 700
+%if ! 0%{?rhel} || 0%{?rhel_version} >= 700 || 0%{?centos_version} >= 700
 BuildRequires:  libevent-devel
 %endif
 
@@ -62,7 +62,7 @@ BuildRequires:  curl-devel
 BuildRequires:  libcurl-devel
 %endif
 
-%if 0%{?fedora}
+%if 0%{?fedora_version}
 BuildRequires:  pkgconfig(systemd)
 %endif
 
@@ -83,10 +83,14 @@ BuildRequires:  libuuid-devel
 
 # GUI dependencies
 %if 0%{?build_gui}
-%if 0%{?fedora}
+%if 0%{?fedora_version}
 BuildRequires:  pkgconfig(Qt5)
 BuildRequires:  desktop-file-utils
-%if 0%{?fedora} >= 24
+BuildRequires:  libappstream-glib
+%if 0%{?fedora_version} == 99
+BuildRequires:  gnu-free-sans-fonts
+%endif
+%if 0%{?fedora_version} >= 24
 BuildRequires:  pkgconfig(Qt5WebEngine)
 %else
 BuildRequires:  pkgconfig(Qt5WebKit)
@@ -110,7 +114,7 @@ BuildRequires:  libqtwebkit2.2-devel
 %endif # GUI
 
 %description
-MediaConch is an implementation checker, policy checker, reporter,
+MediaConch-Implementation is an implementation checker, reporter,
 and fixer that targets preservation-level audiovisual files
 (specifically Matroska, Linear Pulse Code Modulation (LPCM)
 and FF Video Codec 1 (FFV1)).
@@ -121,24 +125,35 @@ This package includes the command line interface.
 
 %if 0%{?build_server}
 %package server
-Summary:    Implementation checker and policy checker for video and audio files (Server)
+Summary:    Implementation checker for video and audio files (Server)
 Group:      Applications/Multimedia
 Requires:   %{libzen_name}%{?_isa} >= %{libzen_version}
 Requires:   %{libmediainfo_name}%{?_isa} >= %{libmediainfo_version}
-%if 0%{?fedora}
+
+%description server
+MediaConch-Implementation is an implementation checker, reporter,
+and fixer that targets preservation-level audiovisual files
+(specifically Matroska, Linear Pulse Code Modulation (LPCM)
+and FF Video Codec 1 (FFV1)).
+
+This project is maintained by MediaArea and funded by PREFORMA.
+
+This package includes the server.
+
+%if 0%{?fedora_version}
 %{?systemd_requires}
 %endif
 %endif # Server
 
 %if 0%{?build_gui}
 %package gui
-Summary:    Implementation checker and policy checker for video and audio files (GUI)
+Summary:    Implementation checker for video and audio files (GUI)
 Group:      Applications/Multimedia
 Requires:   %{libzen_name}%{?_isa} >= %{libzen_version}
 Requires:   %{libmediainfo_name}%{?_isa} >= %{libmediainfo_version}
 
 %description gui
-MediaConch is an implementation checker, policy checker, reporter,
+MediaConch-Implementation is an implementation checker, reporter,
 and fixer that targets preservation-level audiovisual files
 (specifically Matroska, Linear Pulse Code Modulation (LPCM)
 and FF Video Codec 1 (FFV1)).
@@ -148,18 +163,6 @@ This project is maintained by MediaArea and funded by PREFORMA.
 This package includes the graphical user interface.
 %endif # GUI
 
-%if 0%{?build_server}
-%description server
-MediaConch is an implementation checker, policy checker, reporter,
-and fixer that targets preservation-level audiovisual files
-(specifically Matroska, Linear Pulse Code Modulation (LPCM)
-and FF Video Codec 1 (FFV1)).
-
-This project is maintained by MediaArea and funded by PREFORMA.
-
-This package includes the server.
-%endif # Server
-
 %prep
 %setup -q -n MediaConch
 sed -i 's/.$//' *.txt *.html Release/*.txt
@@ -168,22 +171,26 @@ find Source -type f -exec chmod 644 {} ';'
 chmod 644 *.html *.txt Release/*.txt
 
 pushd Project/GNU/CLI
-    autoreconf -i
+    autoreconf -fiv
 popd
 
 %if 0%{?build_server}
 pushd Project/GNU/Server
-    autoreconf -i
+    autoreconf -fiv
 popd
 %endif # Server
 
 %if 0%{?build_gui}
 pushd Project/Qt
-    chmod u+x prepare
-    %if 0%{?suse_version} && ! 0%{?is_opensuse}
-        ./prepare NO_JANSSON=yes
+    %if 0%{?fedora}
+        %{qmake_qt5}
     %else
-        ./prepare
+        chmod u+x prepare
+        %if 0%{?suse_version} && ! 0%{?is_opensuse}
+            ./prepare NO_JANSSON=yes
+        %else
+            ./prepare
+        %endif
     %endif
 popd
 %endif # GUI
@@ -204,13 +211,21 @@ pushd Project/GNU/CLI
         %if 0%{?suse_version} && 0%{?suse_version} < 1200
             %configure --without-libevent
         %else
-        	%if ! 0%{?rhel} || 0%{?centos_version} >= 700
-                %configure
+            %if ! 0%{?rhel} || 0%{?centos_version} >= 700
+                %if 0%{?mageia} > 5
+                    %configure --disable-dependency-tracking
+                %else
+                    %configure
+                %endif
             %else
                 %if 0%{?rhel} == 5
                     %configure --without-jansson --without-libevent --without-sqlite
                 %else
-                    %configure --without-jansson --without-libevent
+                    %if 0%{?rhel} == 6
+                        %configure --without-jansson --without-libevent
+                    %else
+                        %configure --without-jansson
+                    %endif
                 %endif
             %endif
         %endif
@@ -224,7 +239,15 @@ pushd Project/GNU/Server
     %if 0%{?suse_version} && ! 0%{?is_opensuse}
         %configure --without-jansson
     %else
-        %configure
+        %if 0%{?rhel} && ! 0%{?centos}
+            %configure --without-jansson
+        %else
+            %if 0%{?mageia} > 5
+                %configure --disable-dependency-tracking
+            %else
+                %configure
+            %endif
+        %endif
     %endif
     make %{?_smp_mflags}
 popd
@@ -252,7 +275,7 @@ popd
 %if 0%{?build_gui}
 pushd Project/Qt
     install -dm 755 %{buildroot}%{_bindir}
-    install -m 755 mediaconch-gui %{buildroot}%{_bindir}
+    install -m 755 mediaconch-implementation-gui %{buildroot}%{_bindir}
 popd
 
 # icon
@@ -263,65 +286,74 @@ install -m 644 Source/Resource/Image/MediaConch.png %{buildroot}%{_datadir}/pixm
 
 # menu-entry
 install -dm 755 %{buildroot}%{_datadir}/applications
-install -m 644 Project/GNU/GUI/mediaconch-gui.desktop %{buildroot}%{_datadir}/applications
+install -m 644 Project/GNU/GUI/mediaconch-gui.desktop %{buildroot}%{_datadir}/applications/mediaconch-implementation-gui.desktop
+install -dm 755 %{buildroot}%{_datadir}/apps/konqueror/servicemenus
+install -m 644 Project/GNU/GUI/mediaconch-gui.kde3.desktop %{buildroot}%{_datadir}/apps/konqueror/servicemenus/mediaconch-implementation-gui.desktop
+install -dm 755 %{buildroot}%{_datadir}/kde4/services/ServiceMenus/
+install -m 644 Project/GNU/GUI/mediaconch-gui.kde4.desktop %{buildroot}%{_datadir}/kde4/services/ServiceMenus/mediaconch-implementation-gui.desktop
+install -dm 755 %{buildroot}%{_datadir}/appdata/
+install -m 644 Project/GNU/GUI/mediaconch-gui.appdata.xml %{buildroot}%{_datadir}/appdata/mediaconch-implementation-gui.appdata.xml
 %if 0%{?suse_version}
-  %suse_update_desktop_file -n mediaconch-gui AudioVideo AudioVideoEditing
+%suse_update_desktop_file -n %{buildroot}%{_datadir}/kde4/services/ServiceMenus/mediaconch-implementation-gui.desktop AudioVideo AudioVideoEditing
+%suse_update_desktop_file -n %{buildroot}%{_datadir}/apps/konqueror/servicemenus/mediaconch-implementation-gui.desktop AudioVideo AudioVideoEditing
+%suse_update_desktop_file -n mediaconch-implementation-gui AudioVideo AudioVideoEditing
 %endif
-%if 0%{?fedora}
-  desktop-file-install --dir="%{buildroot}%{_datadir}/applications" -m 644 Project/GNU/GUI/mediaconch-gui.desktop
+%if 0%{?fedora_version}
 install -dm 755 %{buildroot}%{_unitdir}
-install -m 644 -p Project/GNU/Server/mediaconchd.service  %{buildroot}%{_unitdir}/mediaconchd.service
+install -m 644 -p Project/GNU/Server/mediaconch-implementationd.service  %{buildroot}%{_unitdir}/mediaconch-implementationd.service
 install -dm 755 %{buildroot}%{_sysconfdir}/%{name}
 install -m 644 -p Project/GNU/Server/MediaConch.rc  %{buildroot}%{_sysconfdir}/%{name}/MediaConch.rc
-%endif
-install -dm 755 %{buildroot}%{_datadir}/apps/konqueror/servicemenus
-install -m 644 Project/GNU/GUI/mediaconch-gui.kde3.desktop %{buildroot}%{_datadir}/apps/konqueror/servicemenus/mediaconch-gui.desktop
-%if 0%{?suse_version}
-  %suse_update_desktop_file -n %{buildroot}%{_datadir}/apps/konqueror/servicemenus/mediaconch-gui.desktop AudioVideo AudioVideoEditing
-%endif
-install -dm 755 %{buildroot}%{_datadir}/kde4/services/ServiceMenus/
-install -m 644 Project/GNU/GUI/mediaconch-gui.kde4.desktop %{buildroot}%{_datadir}/kde4/services/ServiceMenus/mediaconch-gui.desktop
-install -dm 755 %{buildroot}%{_datadir}/appdata/
-install -m 644 Project/GNU/GUI/mediaconch-gui.appdata.xml %{buildroot}%{_datadir}/appdata/mediaconch-gui.appdata.xml
-%if 0%{?suse_version}
-  %suse_update_desktop_file -n %{buildroot}%{_datadir}/kde4/services/ServiceMenus/mediaconch-gui.desktop AudioVideo AudioVideoEditing
+%check
+appstream-util validate-relax --nonet %{buildroot}/%{_datadir}/appdata/*.appdata.xml
 %endif
 %endif #GUI
 
-%if 0%{?fedora}
+%if 0%{?fedora_version}
 %post server
-%systemd_post mediaconchd.service
+%systemd_post mediaconch-implementationd.service
 
 %preun server
-%systemd_preun mediaconchd.service
+%systemd_preun mediaconch-implementationd.service
 
 %postun server
-%systemd_postun_with_restart mediaconchd.service
+%systemd_postun_with_restart mediaconch-implementationd.service
+
+%post gui
+/bin/touch --no-create %{_datadir}/icons/hicolor &>/dev/null || :
+
+%postun gui
+if [ $1 -eq 0 ] ; then
+    /bin/touch --no-create %{_datadir}/icons/hicolor &>/dev/null
+    /usr/bin/gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
+fi
+
+%posttrans gui
+/usr/bin/gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 %endif
 
 %files
 %defattr(-,root,root,-)
 %doc Release/ReadMe_CLI_Linux.txt History_CLI.txt
-%if 0%{?fedora} || 0%{?centos_version} >= 700 || 0%{?rhel_version} >= 700
+%if 0%{?fedora_version} || 0%{?centos_version} >= 700 || 0%{?rhel_version} >= 700
 %license License.html License.GPLv3.html License.MPLv2.html
 %else
 %doc License.html License.GPLv3.html License.MPLv2.html
 %endif
-%{_bindir}/mediaconch
+%{_bindir}/mediaconch-implementation
 
 %if 0%{?build_server}
 %files server
 %defattr(-,root,root,-)
 %doc Documentation/Daemon.md Documentation/Config.md Documentation/REST.md
-%if 0%{?fedora} || 0%{?centos_version} >= 700 || 0%{?rhel_version} >= 700
+%if 0%{?fedora_version} || 0%{?centos_version} >= 700 || 0%{?rhel_version} >= 700
 %license License.html License.GPLv3.html License.MPLv2.html
 %else
 %doc License.html License.GPLv3.html License.MPLv2.html
 %endif
-%{_bindir}/mediaconchd
-%if 0%{?fedora}
+%{_bindir}/mediaconch-implementationd
+%if 0%{?fedora_version}
 %config(noreplace) %{_sysconfdir}/%{name}/MediaConch.rc
-%{_unitdir}/mediaconchd.service
+%{_unitdir}/mediaconch-implementationd.service
 %endif
 %endif # Server
 
@@ -329,12 +361,12 @@ install -m 644 Project/GNU/GUI/mediaconch-gui.appdata.xml %{buildroot}%{_datadir
 %files gui
 %defattr(-,root,root,-)
 %doc Release/ReadMe_GUI_Linux.txt History_GUI.txt
-%if 0%{?fedora} || 0%{?centos_version} >= 700 || 0%{?rhel_version} >= 700
+%if 0%{?fedora_version} || 0%{?centos_version} >= 700 || 0%{?rhel_version} >= 700
 %license License.html License.GPLv3.html License.MPLv2.html
 %else
 %doc License.html License.GPLv3.html License.MPLv2.html
 %endif
-%{_bindir}/mediaconch-gui
+%{_bindir}/mediaconch-implementation-gui
 %{_datadir}/applications/*.desktop
 %{_datadir}/pixmaps/*.png
 %dir %{_datadir}/icons/hicolor

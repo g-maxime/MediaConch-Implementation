@@ -41,7 +41,7 @@ namespace MediaConch
     //**************************************************************************
     // Daemon
     //**************************************************************************
-    std::string Daemon::version = "16.11.0";
+    std::string Daemon::version = "17.07.0";
 
     //--------------------------------------------------------------------------
     Daemon::Daemon() : is_daemon(true), httpd(NULL), logger(NULL), watch_folder_user(NULL),
@@ -103,6 +103,7 @@ namespace MediaConch
         httpd->commands.checker_status_cb = on_checker_status_command;
         httpd->commands.checker_report_cb = on_checker_report_command;
         httpd->commands.checker_clear_cb = on_checker_clear_command;
+        httpd->commands.checker_stop_cb = on_checker_stop_command;
         httpd->commands.checker_list_cb = on_checker_list_command;
         httpd->commands.checker_validate_cb = on_checker_validate_command;
         httpd->commands.checker_file_from_id_cb = on_checker_file_from_id_command;
@@ -261,9 +262,9 @@ namespace MediaConch
 
         if (argument=="-h")
             argument="--help";
-        if (argument=="-v")
+        else if (argument=="-v")
             argument="--version";
-        if (argument=="-n")
+        else if (argument=="-n")
             argument="--fork=No";
 
         if (argument=="-c")
@@ -271,24 +272,39 @@ namespace MediaConch
             last_argument="--configuration=";
             return DAEMON_RETURN_NONE;
         }
-        if (argument=="-pc")
+        else if (argument=="-pc")
         {
             last_argument="--pluginsconfiguration=";
             return DAEMON_RETURN_NONE;
         }
-        if (argument=="-i")
+        else if (argument=="-i")
         {
             last_argument = "--implementationschema=";
             return DAEMON_RETURN_NONE;
         }
-        if (argument=="-iv")
+        else if (argument=="-iv")
         {
             last_argument = "--implementationverbosity=";
             return DAEMON_RETURN_NONE;
         }
-        if (argument=="-o")
+        else if (argument=="-o")
         {
             last_argument = "--outputlog=";
+            return DAEMON_RETURN_NONE;
+        }
+        else if (argument=="-wf")
+        {
+            last_argument = "--watchfolder=";
+            return DAEMON_RETURN_NONE;
+        }
+        else if (argument=="-wfr")
+        {
+            last_argument = "--watchfolder-reports=";
+            return DAEMON_RETURN_NONE;
+        }
+        else if (argument=="-p")
+        {
+            last_argument = "--policy=";
             return DAEMON_RETURN_NONE;
         }
 
@@ -851,8 +867,8 @@ namespace MediaConch
                 *ok->percent = *st_res.percent;
             }
 
-            if (st_res.generated_id >= 0)
-                ok->generated_id = st_res.generated_id;
+            for (size_t j = 0; j < st_res.generated_id.size(); ++j)
+                ok->generated_id.push_back(st_res.generated_id[j]);
 
             if (st_res.source_id >= 0)
                 ok->source_id = st_res.source_id;
@@ -868,40 +884,46 @@ namespace MediaConch
     {
         FUN_CMD_START(Checker_Report)
 
-        MediaConchLib::format format = MediaConchLib::format_Xml;
+        CheckerReport cr;
+        cr.user = req->user;
+        cr.format = MediaConchLib::format_Xml;
         if (req->display_name == MediaConchLib::display_text_name)
-            format = MediaConchLib::format_Text;
+            cr.format = MediaConchLib::format_Text;
         else if (req->display_name == MediaConchLib::display_maxml_name)
-            format = MediaConchLib::format_MaXml;
+            cr.format = MediaConchLib::format_MaXml;
         else if (req->display_name == MediaConchLib::display_html_name)
-            format = MediaConchLib::format_Html;
+            cr.format = MediaConchLib::format_Html;
         else if (req->display_name == MediaConchLib::display_jstree_name)
-            format = MediaConchLib::format_JsTree;
+            cr.format = MediaConchLib::format_JsTree;
+        else if (req->display_name == MediaConchLib::display_simple_name)
+            cr.format = MediaConchLib::format_Simple;
+        else if (req->display_name == MediaConchLib::display_csv_name)
+            cr.format = MediaConchLib::format_CSV;
 
-        const std::string* display_name = req->display_name.length() ? &req->display_name : NULL;
-        const std::string* display_content = req->display_content.length() ? &req->display_content : NULL;
-        if (format != MediaConchLib::format_Xml)
-            display_name = NULL;
+        std::string d_name = req->display_name;
+        std::string d_content = req->display_content;
+        cr.display_name = d_name.size() ? &d_name : NULL;
+        cr.display_content = d_content.size() ? &d_content : NULL;
+        if (cr.format != MediaConchLib::format_Xml)
+            cr.display_name = NULL;
 
-        std::bitset<MediaConchLib::report_Max> report_set;
         for (size_t j = 0; j < req->reports.size(); ++j)
         {
             if (req->reports[j] == RESTAPI::MEDIAINFO)
-                report_set.set(MediaConchLib::report_MediaInfo);
+                cr.report_set.set(MediaConchLib::report_MediaInfo);
             if (req->reports[j] == RESTAPI::MEDIATRACE)
-                report_set.set(MediaConchLib::report_MediaTrace);
+                cr.report_set.set(MediaConchLib::report_MediaTrace);
             if (req->reports[j] == RESTAPI::IMPLEMENTATION)
-                report_set.set(MediaConchLib::report_MediaConch);
+                cr.report_set.set(MediaConchLib::report_MediaConch);
             if (req->reports[j] == RESTAPI::VERAPDF)
-                report_set.set(MediaConchLib::report_MediaVeraPdf);
+                cr.report_set.set(MediaConchLib::report_MediaVeraPdf);
             if (req->reports[j] == RESTAPI::DPFMANAGER)
-                report_set.set(MediaConchLib::report_MediaDpfManager);
+                cr.report_set.set(MediaConchLib::report_MediaDpfManager);
         }
 
-        if (!report_set.count() && !req->policies_ids.size() && !req->policies_contents.size())
-            report_set.set(MediaConchLib::report_MediaConch);
+        if (!cr.report_set.count() && !req->policies_ids.size() && !req->policies_contents.size())
+            cr.report_set.set(MediaConchLib::report_MediaConch);
 
-        std::vector<long> files;
         for (size_t i = 0; i < req->ids.size(); ++i)
         {
             long id = req->ids[i];
@@ -925,25 +947,28 @@ namespace MediaConch
                 FUN_CMD_END(Checker_Report)
             }
 
-            files.push_back(id);
+            cr.files.push_back(id);
         }
 
-        std::map<std::string, std::string> options;
+        for (size_t i = 0; i < req->policies_ids.size(); ++i)
+            cr.policies_ids.push_back(req->policies_ids[i]);
+
+        for (size_t i = 0; i < req->policies_contents.size(); ++i)
+            cr.policies_contents.push_back(req->policies_contents[i]);
+
         std::map<std::string, std::string>::const_iterator it = req->options.begin();
         for (; it != req->options.end(); ++it)
         {
             if (!it->first.size())
                 continue;
 
-            options[it->first.c_str()] = it->second;
+            cr.options[it->first.c_str()] = it->second;
         }
 
         // Output
         MediaConchLib::Checker_ReportRes result;
         std::string err;
-        if (d->MCL->checker_get_report(req->user, report_set, format, files,
-                                       req->policies_ids, req->policies_contents,
-                                       options, &result, err, display_name, display_content) < 0)
+        if (d->MCL->checker_get_report(cr, &result, err) < 0)
             FUN_CMD_NOK(res, err, -1)
         else
         {
@@ -971,13 +996,37 @@ namespace MediaConch
             files.push_back(id);
 
             std::string err;
-            if (d->MCL->remove_report(req->user, files, err) < 0)
+            if (d->MCL->checker_clear(req->user, files, err) < 0)
                 FUN_CMD_NOK_ARR(res, err, id)
 
             res.ok.push_back(id);
         }
 
         FUN_CMD_END(Checker_Clear)
+    }
+
+    //--------------------------------------------------------------------------
+    FUN_CMD_PROTO(checker_stop, Checker_Stop)
+    {
+        FUN_CMD_START(Checker_Stop)
+
+        for (size_t i = 0; i < req->ids.size(); ++i)
+        {
+            int id = req->ids[i];
+            if (id < 0)
+                FUN_CMD_NOK_ARR(res, "ID not existing", id)
+
+            std::vector<long> files;
+            files.push_back(id);
+
+            std::string err;
+            if (d->MCL->checker_stop(req->user, files, err) < 0)
+                FUN_CMD_NOK_ARR(res, err, id)
+
+            res.ok.push_back(id);
+        }
+
+        FUN_CMD_END(Checker_Stop)
     }
 
     //--------------------------------------------------------------------------
@@ -1115,7 +1164,8 @@ namespace MediaConch
             res.filename = info.filename;
             res.file_last_modification = info.file_last_modification;
             res.analyzed = info.analyzed;
-            res.generated_id = info.generated_id;
+            for (size_t j = 0; j < info.generated_id.size(); ++j)
+                res.generated_id.push_back(info.generated_id[j]);
             res.source_id = info.source_id;
             res.generated_time = info.generated_time;
             res.generated_log = info.generated_log;
