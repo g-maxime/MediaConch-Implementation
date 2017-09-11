@@ -51,6 +51,19 @@ int Help()
     TEXTOUT("--Mediaconch, -mc");
     TEXTOUT("                    Output MediaConch report (default)");
     TEXTOUT("                    (MediaConch contains default verbosity of implementationChecks plus any provided policy checks.)");
+    TEXTOUT("--Mediainfo, -mi");
+    TEXTOUT("                    Output MediaInfo report");
+    TEXTOUT("--Mediatrace, -mt");
+    TEXTOUT("                    Output a trace of the file");
+    TEXTOUT("");
+
+    TEXTOUT("Policy Checker:");
+    TEXTOUT("--Policy=PolicyFileName, -p PolicyFileName");
+    TEXTOUT("                    Apply the policy (XSL or Schematron) ");
+    TEXTOUT("--CreatePolicy");
+    TEXTOUT("                    Create a policy (XSL) from a file");
+    TEXTOUT("--PolicyReferenceFile=VideoFile, -prf VideoFile");
+    TEXTOUT("                    Use the VideoFile as reference to compare in policy");
     TEXTOUT("");
 
     TEXTOUT("Output Formats:");
@@ -65,6 +78,28 @@ int Help()
     TEXTOUT("                    Output MediaConch report in HTML format");
     TEXTOUT("--Display=DisplayFileName, -d DisplayFileName");
     TEXTOUT("                    Apply the display transformation (XSL)");
+    TEXTOUT("");
+
+    TEXTOUT("Watch folder:");
+    TEXTOUT("--WatchFolders-List, -wfl");
+    TEXTOUT("                    List the folder watched");
+    TEXTOUT("--WatchFolder=folder -wf folder");
+    TEXTOUT("                    Send to the server a folder to watch");
+    TEXTOUT("--WatchFolder-Reports=folder -wfr folder");
+    TEXTOUT("                    Create reports of the selected watch folder to this folder");
+    TEXTOUT("--WatchFolder-Not-Recursive");
+    TEXTOUT("                    If watch folder is enabled, do not check recursively the folder");
+    TEXTOUT("--WatchFolder-User=userId -wfu userId");
+    TEXTOUT("                    Create reports of the watch folder for the selected user ID");
+    TEXTOUT("");
+
+    TEXTOUT("Plugins:");
+    TEXTOUT("--PluginsList");
+    TEXTOUT("                    Output the plugins information ID");
+    TEXTOUT("--UsePlugin=PluginId, -up PluginId");
+    TEXTOUT("                    By default, only format plugin are used.");
+    TEXTOUT("                    With this command, you can give the plugin ID you want to use.");
+    TEXTOUT("                    Plugin ID can be get using the --pluginslist.");
     TEXTOUT("");
 
     TEXTOUT("File:");
@@ -193,6 +228,18 @@ int Help_Ssh()
     TEXTOUT("                    Does not verify the authenticity of the peer");
     TEXTOUT("                    (you don't need to accept the key with ssh first)");
     TEXTOUT("                    Use it at your own risks");
+
+    return CLI_RETURN_FINISH;
+}
+
+//---------------------------------------------------------------------------
+int Help_Policy()
+{
+    TEXTOUT("--Policy=...  Specify a schema to validate");
+    TEXTOUT("Usage: \"MediaConch --Policy=FileName\"");
+    TEXTOUT("");
+    TEXTOUT("FileName is the Schematron file used to validate");
+    TEXTOUT("");
 
     return CLI_RETURN_FINISH;
 }
